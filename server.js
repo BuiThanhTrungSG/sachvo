@@ -37,8 +37,8 @@ io.on("connection", (socket) => {
   });
 });
 
-const port = process.env.PORT || 3030;
-const hostname = process.env.HOST_NAME || "0.0.0.0";
+const port = process.env.PORT || 3000;
+const hostname = process.env.HOST_NAME || "127.0.0.1";
 
 server.listen(port, hostname, () => {
   console.log(`✅ Server chạy tại http://${hostname}:${port}`);
