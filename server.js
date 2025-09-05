@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const path = require("path");
+// const path = require("path");
 const cors = require("cors");
 const express = require("express");
 const http = require("http");
@@ -26,7 +26,7 @@ app.use((req, res, next) => {
 });
 
 app.use("/api", webRouters);
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static("/home/sachvo/uploads"));
 
 // socket.io connection
 io.on("connection", (socket) => {
