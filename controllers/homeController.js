@@ -2,17 +2,15 @@ const connection = require("../config/database");
 
 const products = async (req, res) => {
   try {
-    // lấy query từ request (GET), fallback sang body nếu không có
-    let page = parseInt(req.query.page || req.body.page || 1);
-    let limit = parseInt(req.query.limit || req.body.limit || 10);
+    let page = parseInt(req.query.page || req.body.page || 1, 10);
+    let limit = parseInt(req.query.limit || req.body.limit || 10, 10);
     let q = req.query.q || req.body.q || "";
 
-    page = page < 1 ? 1 : page;
-    limit = limit < 1 ? 10 : limit;
+    page = isNaN(page) || page < 1 ? 1 : page;
+    limit = isNaN(limit) || limit < 1 ? 10 : limit;
     const offset = (page - 1) * limit;
 
     let total = 0;
-    let rows = [];
 
     // --- Đếm tổng số ---
     if (q !== "") {
@@ -42,11 +40,10 @@ const products = async (req, res) => {
       params.push(`%${q}%`);
     }
 
-    sql += " ORDER BY p.id DESC LIMIT ? OFFSET ?";
-    params.push(limit, offset);
+    // LIMIT/OFFSET nối trực tiếp (an toàn vì đã ép số nguyên)
+    sql += ` ORDER BY p.id DESC LIMIT ${limit} OFFSET ${offset}`;
 
     const [listResult] = await connection.execute(sql, params);
-    rows = listResult;
 
     // trả về kết quả
     return res.status(200).json({
@@ -55,10 +52,10 @@ const products = async (req, res) => {
       limit,
       total,
       total_pages: Math.ceil(total / limit),
-      data: rows,
+      data: listResult,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Products error:", err);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
