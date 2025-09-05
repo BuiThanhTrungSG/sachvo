@@ -20,10 +20,11 @@ const adminLogin = async (req, res) => {
     }
 
     // so sánh mật khẩu nhập vào với hash trong DB
-    const hash = user.password_hash.replace(/^\$2y\$/, "$2a$");
+    // const hash = user.password_hash.replace(/^\$2y\$/, "$2a$");
 
-    const match = await bcrypt.compare(password, hash);
-    if (!match) {
+    // const match = await bcrypt.compare(password, hash);
+
+    if (!password == user.password_hash) {
       return res.status(401).json({ error: "Mật khẩu không khớp" });
     }
 
