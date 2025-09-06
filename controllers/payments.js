@@ -19,6 +19,7 @@ const createPayment = async (req, res) => {
     res.status(500).send("Có lỗi xảy ra khi tạo link thanh toán");
   }
 };
+// bỏ đoạn này thử
 
 // function verifySignature(req) {
 //   const signature = req.headers["x-payos-signature"];
