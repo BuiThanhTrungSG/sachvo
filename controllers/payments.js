@@ -24,11 +24,11 @@ const webhook = async (req, res) => {
   try {
     const payload = req.body;
 
-    const status = payload.data?.desc;
+    const status = payload.data?.data.desc;
 
     console.log("📩 Webhook nhận:", payload.data);
 
-    console.log("📩 Webhook nhận:", status);
+    console.log("📩 Webhook nhận 2:", status);
 
     if (status === "success") {
       sendToClients("payment_update", payload.data);
