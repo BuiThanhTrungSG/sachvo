@@ -23,16 +23,16 @@ const createPayment = async (req, res) => {
 const webhook = async (req, res) => {
   try {
     const payload = req.body;
-    console.log("📩 Webhook nhận:", payload);
 
-    const status = payload.data?.status;
+    const status = payload.data?.desc;
 
-    if (status === "PAID") {
-      sendToClients("payment_update", payload.data);
-    } else if (status === "FAILED" || status === "CANCELED") {
+    console.log("📩 Webhook nhận:", payload.data);
+
+    console.log("📩 Webhook nhận:", status);
+
+    if (status === "success") {
       sendToClients("payment_update", payload.data);
     }
-
     res.status(200).send("OK");
   } catch (error) {
     console.error("❌ Webhook error:", error);
