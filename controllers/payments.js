@@ -20,24 +20,24 @@ const createPayment = async (req, res) => {
   }
 };
 
-function verifySignature(req) {
-  const signature = req.headers["x-payos-signature"];
-  const body = JSON.stringify(req.body);
-  const secretKey = process.env.PAYOS_CLIENT_SECRET;
+// function verifySignature(req) {
+//   const signature = req.headers["x-payos-signature"];
+//   const body = JSON.stringify(req.body);
+//   const secretKey = process.env.PAYOS_CLIENT_SECRET;
 
-  const hash = crypto
-    .createHmac("sha256", secretKey)
-    .update(body)
-    .digest("hex");
+//   const hash = crypto
+//     .createHmac("sha256", secretKey)
+//     .update(body)
+//     .digest("hex");
 
-  return hash === signature;
-}
+//   return hash === signature;
+// }
 
 const webhook = async (req, res) => {
   try {
-    if (!verifySignature(req)) {
-      return res.status(400).send("Invalid signature");
-    }
+    // if (!verifySignature(req)) {
+    //   return res.status(400).send("Invalid signature");
+    // }
 
     const payload = req.body;
     console.log("📩 Webhook nhận:", payload);
