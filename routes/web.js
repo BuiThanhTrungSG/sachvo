@@ -1,6 +1,10 @@
 const express = require("express");
 const { products, fetchProductById } = require("../controllers/homeController");
-const { createPayment, webhook } = require("../controllers/payments");
+const {
+  createPayment,
+  webhook,
+  paymentStream,
+} = require("../controllers/payments");
 const {
   adminLogin,
   categories,
@@ -33,7 +37,7 @@ const upload = multer({ storage });
 // PAYMENT
 router.post("/create-payment", createPayment);
 router.post("/webhook", webhook);
-
+router.get("/paymentStream", paymentStream);
 // PRODUCTS
 router.get("/products", products);
 router.get("/products/:id", fetchProductById);
