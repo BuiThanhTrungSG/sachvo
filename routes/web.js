@@ -52,7 +52,7 @@ router.post(
   "/createProduct",
   upload.fields([
     { name: "file", maxCount: 1 }, // trùng với form.file
-    { name: "images", maxCount: 10 }, // trùng với form.images
+    { name: "images", maxCount: 20 }, // trùng với form.images
   ]),
   adminCreateProduct
 );
