@@ -12,11 +12,8 @@ const {
   adminDelete,
   adminCreateProduct,
 } = require("../controllers/adminController");
-const {
-  createCuocthi,
-  getCuocthiList,
-  getCuocthiById,
-} = require("../controllers/cuocthiController");
+
+const cuocthiController = require("../controllers/cuocthiController");
 
 const router = express.Router();
 const multer = require("multer");
