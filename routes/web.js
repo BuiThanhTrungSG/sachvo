@@ -12,6 +12,11 @@ const {
   adminDelete,
   adminCreateProduct,
 } = require("../controllers/adminController");
+const {
+  createCuocthi,
+  getCuocthiList,
+  getCuocthiById,
+} = require("../controllers/cuocthiController");
 
 const router = express.Router();
 const multer = require("multer");
@@ -56,5 +61,22 @@ router.post(
   ]),
   adminCreateProduct
 );
+
+// CUOCTHI
+
+// CREATE
+router.post("/", cuocthiController.createCuocthi);
+
+// READ LIST
+router.get("/", cuocthiController.getCuocthiList);
+
+// READ DETAIL
+router.get("/:id", cuocthiController.getCuocthiById);
+
+// UPDATE
+router.put("/:id", cuocthiController.updateCuocthi);
+
+// DELETE
+router.delete("/:id", cuocthiController.deleteCuocthi);
 
 module.exports = router;
