@@ -14,6 +14,7 @@ const {
 } = require("../controllers/adminController");
 
 const cuocthiController = require("../controllers/cuocthiController");
+const exams = require("../controllers/exams");
 
 const router = express.Router();
 const multer = require("multer");
@@ -60,6 +61,9 @@ router.post(
 );
 
 // CUOCTHI
+
+// API sinh đề
+router.post("/exams", exams);
 
 // CREATE
 router.post("/cuocthi", cuocthiController.createCuocthi);
