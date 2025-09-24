@@ -223,7 +223,7 @@ const generateExams = [
           // Dọn dẹp file đã upload và thư mục tạm
           fs.unlinkSync(req.file.path);
           filesToCleanup.forEach((filePath) => fs.unlinkSync(filePath));
-          fs.rmdirSync(outDir, { recursive: true });
+          fs.rmSync(outDir, { recursive: true, force: true });
         });
       });
     } catch (err) {
@@ -234,7 +234,7 @@ const generateExams = [
         fs.unlinkSync(req.file.path);
       }
       if (outDir) {
-        fs.rmdirSync(outDir, { recursive: true });
+        fs.rmSync(outDir, { recursive: true, force: true });
       }
     }
   },
