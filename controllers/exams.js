@@ -147,6 +147,7 @@ async function createExamFile(questions, filePath) {
 const generateExams = [
   upload.single("file"),
   async (req, res) => {
+    let outDir = null;
     try {
       if (!req.file)
         return res
@@ -158,17 +159,19 @@ const generateExams = [
       const questions = await parseQuestions(req.file.path);
       const answerKeys = [];
 
-      // tạo thư mục output
+      // tạo thư mục output tạm thời
       const runId = Date.now() + "-" + Math.round(Math.random() * 10000);
-      const outDir = path.join("uploads", "output", runId);
+      outDir = path.join("uploads", "output", runId);
       fs.mkdirSync(outDir, { recursive: true });
 
-      const zipName = `exams_${runId}.zip`;
+      const zipName = `sachvo_${runId}.zip`;
       const zipPath = path.join(outDir, zipName);
 
       const output = fs.createWriteStream(zipPath);
       const archive = archiver("zip", { zlib: { level: 9 } });
       archive.pipe(output);
+
+      const filesToCleanup = [];
 
       for (let i = 1; i <= numFiles; i++) {
         const shuffledQuestions = _.shuffle(questions).map((q) => {
@@ -188,6 +191,7 @@ const generateExams = [
         const examFilePath = path.join(outDir, examFileName);
         await createExamFile(shuffledQuestions, examFilePath);
         archive.file(examFilePath, { name: examFileName });
+        filesToCleanup.push(examFilePath);
 
         // Lưu đáp án vào mảng
         const answers = { "Mã đề": `De_so_${i}` };
@@ -206,19 +210,31 @@ const generateExams = [
       const answerKeysFilePath = path.join(outDir, `Dap_an_tong_hop.xlsx`);
       xlsx.writeFile(answerKeysWB, answerKeysFilePath);
       archive.file(answerKeysFilePath, { name: `Dap_an_tong_hop.xlsx` });
+      filesToCleanup.push(answerKeysFilePath);
 
       await archive.finalize();
 
       output.on("close", () => {
-        res.download(zipPath, zipName);
+        // Gửi file zip về client
+        res.download(zipPath, zipName, (err) => {
+          if (err) {
+            console.error("Lỗi khi tải file zip:", err);
+          }
+          // Dọn dẹp file đã upload và thư mục tạm
+          fs.unlinkSync(req.file.path);
+          filesToCleanup.forEach((filePath) => fs.unlinkSync(filePath));
+          fs.rmdirSync(outDir, { recursive: true });
+        });
       });
     } catch (err) {
       console.error("[exams] error:", err);
       res.status(500).json({ success: false, message: "Server error" });
-    } finally {
-      // Dọn dẹp file đã upload
+      // Dọn dẹp cả trong trường hợp lỗi
       if (req.file) {
         fs.unlinkSync(req.file.path);
+      }
+      if (outDir) {
+        fs.rmdirSync(outDir, { recursive: true });
       }
     }
   },
