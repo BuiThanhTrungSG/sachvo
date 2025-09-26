@@ -1,7 +1,19 @@
 // controllers/exams.js
 const fs = require("fs");
 const path = require("path");
-const { Document, Packer, Paragraph, TextRun } = require("docx");
+const {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  Alignment,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  BorderStyle,
+  VerticalAlign,
+} = require("docx");
 const archiver = require("archiver");
 const _ = require("lodash");
 const multer = require("multer");
@@ -28,7 +40,7 @@ async function extractDocxXML(docxPath) {
   return parser.parseStringPromise(xml);
 }
 
-// ===== Helper: Phân tích một paragraph (<w:p>) trong XML (Đã FIX triệt để lỗi ký hiệu) =====
+// ===== Helper: Phân tích một paragraph (<w:p>) trong XML (Không đổi) =====
 function parseParagraph(p) {
   let runs = _.get(p, "w:r", []);
   if (!Array.isArray(runs)) {
@@ -46,7 +58,6 @@ function parseParagraph(p) {
       text = "";
     }
 
-    // Thêm ký hiệu độ (degree sign) nếu nó là w:sym
     if (_.get(r, "w:sym.w:char") === "00B0") {
       text += "°";
     }
@@ -60,15 +71,12 @@ function parseParagraph(p) {
       text: text,
       isBold: isBold,
     });
-  }); // ------------------------ LOGIC CHUẨN HÓA KÝ HIỆU (Cải tiến mạnh mẽ) ------------------------ // 1. Chuẩn hóa 'o' hoặc '0' (số không) đứng trước 'C' hoặc 'F' thành ký hiệu độ. // Ví dụ: 80oC, 0,150C -> 80°C, 0,15°C
+  });
 
-  plainText = plainText.replace(/([0-9.,])\s*([oO0])\s*([cCfF])/g, "$1°$3"); // 2. Fix lỗi thiếu 'C' sau ký hiệu độ (°) // Ví dụ: 0,01° -> 0,01°C
-
-  plainText = plainText.replace(/([0-9.,])\s*(°)(?!\s*[CFK])/g, "$1°C"); // 3. Chuẩn hóa khoảng trắng thừa và ký tự 'K' bị mất // Ví dụ: -273 K. -> -273 K. (Nếu K. bị mất do lỗi parsing, ta không thể khôi phục 100%, // nhưng ta có thể đảm bảo K. không bị cắt sau số)
-
+  plainText = plainText.replace(/([0-9.,])\s*([oO0])\s*([cCfF])/g, "$1°$3");
+  plainText = plainText.replace(/([0-9.,])\s*(°)(?!\s*[CFK])/g, "$1°C");
   plainText = plainText.replace(/([0-9.])\s*K\s*\./g, "$1 K.");
-  plainText = plainText.replace(/([0-9.])\s*K\s*/g, "$1 K"); // Giữ K cách xa số // 4. Chuẩn hóa các ký hiệu độ C bị dính: 0C -> °C
-
+  plainText = plainText.replace(/([0-9.])\s*K\s*/g, "$1 K");
   plainText = plainText.replace(/([0-9])C\b/g, "$1°C");
 
   return {
@@ -77,7 +85,7 @@ function parseParagraph(p) {
   };
 }
 
-// ===== Helper: Parse questions từ XML của docx (Không đổi logic parsing chính) =====
+// ===== Helper: Parse questions từ XML của docx (Không đổi) =====
 async function parseDocxQuestions(docxPath) {
   const docx = await extractDocxXML(docxPath);
   const paragraphs = _.get(docx, "w:document.w:body.w:p", []);
@@ -92,7 +100,6 @@ async function parseDocxQuestions(docxPath) {
     const isNewQuestion = /^Câu\s*\d+[.:\)]\s*/i.test(text);
     const isAnswerLine = /^[A-Z][.:\)]\s*/.test(text);
 
-    // Tái tạo lại chuỗi text và map định dạng sau khi parseParagraph đã chuẩn hóa text
     let fullTextFromRuns = runs.map((r) => r.text).join("");
     const charFormatMap = [];
     runs.forEach((r) => {
@@ -125,7 +132,7 @@ async function parseDocxQuestions(docxPath) {
           currentQ.answers.push(answerText);
         } else {
           continue;
-        } // Logic kiểm tra BOLD toàn bộ (Giữ nguyên)
+        }
 
         const answerMarkerMatch = cleanPart.match(/^[A-I][.:\)]/);
         if (!answerMarkerMatch) continue;
@@ -175,7 +182,6 @@ async function parseDocxQuestions(docxPath) {
     questions.push(currentQ);
   }
 
-  console.log(questions);
   return questions;
 }
 
@@ -188,9 +194,168 @@ function fixCapitalization(text) {
   });
 }
 
+// Lưu ý: Bạn cần chắc chắn rằng các thuộc tính như BorderStyle, WidthType, Alignment, Table, TableRow, TableCell, Paragraph, TextRun đã được import từ thư viện docx.
+
+function createHeader(examIndex, numPages) {
+  const maDe = String(examIndex).padStart(2, "0");
+  const numPageText = numPages || "xx";
+
+  // Định nghĩa viền MẶC ĐỊNH là ẩn
+  const defaultBorders = {
+    top: { style: BorderStyle.NONE, size: 0 },
+    bottom: { style: BorderStyle.NONE, size: 0 },
+    left: { style: BorderStyle.NONE, size: 0 },
+    right: { style: BorderStyle.NONE, size: 0 },
+    insideHorizontal: { style: BorderStyle.NONE, size: 0 },
+    insideVertical: { style: BorderStyle.NONE, size: 0 },
+  };
+
+  // SỬA ĐỔI: Thêm tham số 'italics' (mặc định là false) vào centerPara
+  const centerPara = (
+    text,
+    bold = false,
+    italics = false,
+    size = 22,
+    spacingAfter = 0
+  ) =>
+    new Paragraph({
+      children: [new TextRun({ text, bold, italics, size })], // Áp dụng 'italics'
+      alignment: "center",
+      spacing: { after: spacingAfter },
+    });
+
+  const fullCenterCell = (children, width, properties = {}) =>
+    new TableCell({
+      children: Array.isArray(children) ? children : [children],
+      // Sử dụng defaultBorders (viền ẩn) cho hầu hết các ô
+      borders: defaultBorders,
+      width: width ? { size: width, type: WidthType.PERCENTAGE } : undefined,
+      ...properties,
+    });
+
+  const studentNameText =
+    "Họ và tên:..........................................................";
+  const studentClassText =
+    "Lớp:...................................................................";
+
+  // Bắt đầu cấu trúc một bảng duy nhất
+  const rows = [
+    new TableRow({
+      children: [
+        fullCenterCell(
+          centerPara("SỞ GD & ĐT TP HỒ CHÍ MINH", false, false, 22),
+          35
+        ),
+        fullCenterCell(centerPara("ĐỀ KIỂM TRA CUỐI KỲ", true, false, 22), 65),
+      ],
+    }),
+
+    // ... (Các Row khác không thay đổi)
+
+    new TableRow({
+      children: [
+        fullCenterCell(
+          centerPara("TRƯỜNG THPT TRƯỜNG CHINH", true, false, 22),
+          35
+        ),
+        fullCenterCell(centerPara("MÔN: VẬT LÍ", true, false, 22), 65),
+      ],
+    }),
+
+    new TableRow({
+      children: [
+        fullCenterCell(centerPara("", true, false, 22), 35),
+        fullCenterCell(centerPara("", true, false, 22), 65),
+      ],
+    }),
+
+    new TableRow({
+      children: [
+        fullCenterCell(
+          centerPara(`(Đề thi có ${numPageText} trang)`, false, false, 22),
+          35
+        ),
+        fullCenterCell(
+          centerPara("Thời gian làm bài: 45 PHÚT", false, false, 22),
+          65
+        ),
+      ],
+    }),
+
+    new TableRow({
+      children: [
+        fullCenterCell(centerPara(``, false, false, 22), 35),
+        // SỬA ĐỔI: Thêm tham số 'true' cho italics (tham số thứ 3)
+        fullCenterCell(
+          centerPara("(không kể thời gian chép đề)", false, true, 22),
+          65
+        ),
+      ],
+    }),
+
+    new TableRow({
+      children: [
+        fullCenterCell(centerPara(studentNameText, false, false, 22), 35),
+        fullCenterCell(centerPara(``, false, false, 22), 65),
+      ],
+    }),
+
+    // Dòng cuối cùng của thông tin học sinh/mã đề
+    new TableRow({
+      children: [
+        fullCenterCell(centerPara(studentClassText, false, false, 22), 35),
+        fullCenterCell(centerPara(`Mã đề: ${maDe}`, false, false, 22), 65),
+      ],
+    }),
+
+    // Dòng có viền dưới
+    new TableRow({
+      children: [
+        fullCenterCell(centerPara("", false, false, 22), 35, {
+          // Thêm viền dưới riêng cho ô này
+          borders: {
+            ...defaultBorders,
+            bottom: { style: BorderStyle.SINGLE, size: 6, color: "000000" }, // Viền đơn, dày 6, màu đen
+          },
+        }),
+        fullCenterCell(centerPara("", false, false, 22), 35, {
+          // Thêm viền dưới riêng cho ô này
+          borders: {
+            ...defaultBorders,
+            bottom: { style: BorderStyle.SINGLE, size: 6, color: "000000" }, // Viền đơn, dày 6, màu đen
+          },
+        }),
+      ],
+    }),
+
+    new TableRow({
+      children: [
+        fullCenterCell(centerPara("", false, false, 22), 35),
+        fullCenterCell(centerPara("", false, false, 22), 35),
+      ],
+    }),
+  ];
+
+  const headerTable = new Table({
+    rows: rows,
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    alignment: Alignment.CENTER,
+    borders: defaultBorders,
+  });
+
+  return [headerTable];
+}
+
 // ===== Sinh file Word (Không đổi) =====
-async function createExamFile(questions, filePath) {
+async function createExamFile(questions, filePath, examIndex) {
   const children = [];
+
+  // Tạm tính số trang (ước lượng)
+  const numPagesEstimate = Math.ceil(questions.length / 5) + 1;
+
+  // 1. Chèn Tiêu đề
+  const header = createHeader(examIndex, numPagesEstimate);
+  children.push(...header);
 
   questions.forEach((q, idx) => {
     const fixedQuestion = fixCapitalization(q.question);
@@ -226,7 +391,19 @@ async function createExamFile(questions, filePath) {
     children.push(new Paragraph(""));
   });
 
-  const doc = new Document({ sections: [{ children }] });
+  const doc = new Document({
+    sections: [{ children }],
+    styles: {
+      default: {
+        document: {
+          run: {
+            font: "Times New Roman",
+            size: 24, // Tương đương 12pt
+          },
+        },
+      },
+    },
+  });
   const buffer = await Packer.toBuffer(doc);
   fs.writeFileSync(filePath, buffer);
 }
@@ -296,7 +473,7 @@ const generateExams = [
 
         const examFileName = `De_so_${i}.docx`;
         const examFilePath = path.join(outDir, examFileName);
-        await createExamFile(shuffledQuestions, examFilePath);
+        await createExamFile(shuffledQuestions, examFilePath, i);
         archive.file(examFilePath, { name: examFileName });
         filesToCleanup.push(examFilePath);
 
