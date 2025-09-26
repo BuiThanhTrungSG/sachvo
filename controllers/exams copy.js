@@ -17,7 +17,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// ===== Helper: Đọc XML từ file .docx =====
+// ===== Helper: Đọc XML từ file .docx (Không đổi) =====
 async function extractDocxXML(docxPath) {
   const zip = new AdmZip(docxPath);
   const xml = zip.readAsText("word/document.xml", "utf8");
@@ -28,7 +28,7 @@ async function extractDocxXML(docxPath) {
   return parser.parseStringPromise(xml);
 }
 
-// ===== Helper: Phân tích một paragraph (<w:p>) trong XML =====
+// ===== Helper: Phân tích một paragraph (<w:p>) trong XML (Không đổi) =====
 function parseParagraph(p) {
   let runs = _.get(p, "w:r", []);
   if (!Array.isArray(runs)) {
@@ -60,11 +60,11 @@ function parseParagraph(p) {
   return {
     text: plainText.trim(),
     hasFormatting: hasFormatting,
-    runs: runs, // Trả về runs để phân tích định dạng chi tiết hơn
+    runs: runs,
   };
 }
 
-// ===== Helper: Parse questions từ XML của docx (Logic đã được FIX) =====
+// ===== Helper: Parse questions từ XML của docx (Không đổi) =====
 async function parseDocxQuestions(docxPath) {
   const docx = await extractDocxXML(docxPath);
   const paragraphs = _.get(docx, "w:document.w:body.w:p", []);
@@ -73,10 +73,10 @@ async function parseDocxQuestions(docxPath) {
   let currentQ = null;
 
   for (const p of paragraphs) {
-    const { text, runs } = parseParagraph(p); // Lấy cả runs
+    const { text, runs } = parseParagraph(p);
     if (!text) continue;
 
-    const isNewQuestion = /^Câu\s*\d+[.:\)]\s*/i.test(text); // Regex mới: bắt đầu bằng A, B, C... theo sau là chấm hoặc ngoặc đóng
+    const isNewQuestion = /^Câu\s*\d+[.:\)]\s*/i.test(text);
     const isAnswerLine = /^[A-Z][.:\)]\s*/.test(text);
 
     if (isNewQuestion) {
@@ -89,19 +89,10 @@ async function parseDocxQuestions(docxPath) {
         correct: -1,
       };
     } else if (isAnswerLine && currentQ) {
-      // ---------------- LOGIC ĐÃ FIX HOÀN TOÀN ----------------
-      // Regex để tìm tất cả các lựa chọn đáp án: [A-Z][.:)] và tất cả ký tự cho đến
-      // khi gặp ký hiệu đáp án tiếp theo hoặc hết dòng.
-      // Pattern: (([A-Z][.:\)])(\s*.*?))(?=\s*[B-Z][.:\)]|$)
-      // Giải thích:
-      // [A-Z][.:\)]: Bắt đầu bằng A, B... theo sau là chấm hoặc ngoặc đóng
-      // (\s*.*?): Bắt bất kỳ ký tự nào, kể cả khoảng trắng, cho đến...
-      // (?=\s*[B-Z][.:\)]|$): ...trước khi gặp ký hiệu đáp án tiếp theo hoặc cuối chuỗi.
-
-      const answerRegex = /([A-Z][.:\)]\s*.*?)(\s*(?=[B-Z][.:\)]|$))/g; // Sử dụng .match() để lấy tất cả các lựa chọn
+      const answerRegex = /([A-Z][.:\)]\s*.*?)(\s*(?=[B-Z][.:\)]|$))/g;
       const rawAnswerParts = text.match(answerRegex);
 
-      if (!rawAnswerParts || rawAnswerParts.length === 0) continue; // Xử lý tách câu trả lời và tìm đáp án đúng (logic này cần được làm lại // để sử dụng kết quả match) // Bước 1: Chuẩn bị map định dạng từ runs
+      if (!rawAnswerParts || rawAnswerParts.length === 0) continue;
 
       let fullTextFromRuns = "";
       const formatMap = new Map();
@@ -110,7 +101,7 @@ async function parseDocxQuestions(docxPath) {
       for (const r of runs) {
         const rPr = _.get(r, "w:rPr", {});
         const isBold = _.get(rPr, "w:b") !== undefined;
-        const isCorrectFormat = isBold; // Giả định đáp án đúng được BOLD
+        const isCorrectFormat = isBold;
 
         const runText =
           typeof r["w:t"] === "string" ? r["w:t"] : _.get(r, "w:t._", "");
@@ -120,30 +111,31 @@ async function parseDocxQuestions(docxPath) {
           charIndex++;
         }
         fullTextFromRuns += runText;
-      } // Bước 2: Thêm đáp án vào mảng và kiểm tra định dạng
+      }
 
       for (const part of rawAnswerParts) {
-        const cleanPart = part.trim(); // Loại bỏ ký hiệu đáp án (A., B., ...) để lấy nội dung
+        const cleanPart = part.trim();
+
         const answerText = cleanPart.replace(/^[A-Z][.:\)]\s*/, "").trim();
+
         if (answerText) {
-          // Chỉ thêm đáp án nếu không phải chuỗi rỗng
           currentQ.answers.push(answerText);
         } else {
-          continue; // Bỏ qua nếu nội dung đáp án là rỗng
-        } // Kiểm tra định dạng (tìm đáp án đúng) // 1. Tìm vị trí của ký hiệu đáp án trong fullTextFromRuns
+          continue;
+        }
 
         const answerMarkerMatch = cleanPart.match(/^[A-Z][.:\)]/);
         if (!answerMarkerMatch) continue;
-        const answerMarker = answerMarkerMatch[0]; // 2. Lấy vị trí bắt đầu của toàn bộ phần đáp án trong text gốc (và fullTextFromRuns)
-        const partStartIndex = fullTextFromRuns.indexOf(part.trim()); // Dùng trim() để khớp
+        const answerMarker = answerMarkerMatch[0];
 
-        if (partStartIndex === -1) continue; // 3. Tìm index của ký tự đầu tiên của nội dung đáp án (sau A., B., ...)
+        const partStartIndex = fullTextFromRuns.indexOf(part.trim());
+
+        if (partStartIndex === -1) continue;
 
         let checkIndex = -1;
-        const startSearchIndex = partStartIndex + answerMarker.length; // Lặp qua để bỏ qua các khoảng trắng/tab/xuống dòng
+        const startSearchIndex = partStartIndex + answerMarker.length;
+
         for (let i = startSearchIndex; i < fullTextFromRuns.length; i++) {
-          // Kiểm tra xem ký tự này có phải là một phần của 'part' hay không
-          // và có phải là ký tự không phải khoảng trắng không
           if (fullTextFromRuns[i].trim() !== "") {
             checkIndex = i;
             break;
@@ -159,7 +151,6 @@ async function parseDocxQuestions(docxPath) {
         }
       }
     } else if (currentQ && currentQ.answers.length === 0) {
-      // Ghép nội dung cho câu hỏi nhiều dòng
       currentQ.question += " " + text;
     }
   }
@@ -172,11 +163,26 @@ async function parseDocxQuestions(docxPath) {
   return questions;
 }
 
-// ===== Sinh file Word (Không đổi) =====
+// ===== Helper: Sửa lỗi chính tả (Viết hoa sau dấu chấm) =====
+function fixCapitalization(text) {
+  if (!text) return "";
+
+  // 1. Viết hoa ký tự đầu tiên của toàn bộ chuỗi (nếu có ký tự)
+  text = text.charAt(0).toUpperCase() + text.slice(1);
+
+  // 2. Viết hoa ký tự đầu tiên sau dấu chấm, chấm hỏi, chấm than (theo sau là khoảng trắng)
+  // Regex: ([\.\?\!]\s+)([a-z])
+  return text.replace(/([\.\?\!]\s*)([a-z])/g, (match, separator, letter) => {
+    return separator + letter.toUpperCase();
+  });
+}
+
+// ===== Sinh file Word (Đã thêm Sửa lỗi chính tả) =====
 async function createExamFile(questions, filePath) {
   const children = [];
 
   questions.forEach((q, idx) => {
+    const fixedQuestion = fixCapitalization(q.question);
     children.push(
       new Paragraph({
         children: [
@@ -184,13 +190,15 @@ async function createExamFile(questions, filePath) {
             text: `Câu ${idx + 1}. `,
             bold: true,
           }),
-          new TextRun(q.question),
+          new TextRun(fixedQuestion),
         ],
       })
     );
 
     q.answers.forEach((ans, i) => {
       const answerLetter = `${String.fromCharCode(65 + i)}. `;
+      const fixedAnswer = fixCapitalization(ans);
+
       children.push(
         new Paragraph({
           children: [
@@ -198,7 +206,7 @@ async function createExamFile(questions, filePath) {
               text: answerLetter,
               bold: true,
             }),
-            new TextRun(ans),
+            new TextRun(fixedAnswer),
           ],
           indent: { left: 720 },
         })
@@ -212,7 +220,7 @@ async function createExamFile(questions, filePath) {
   fs.writeFileSync(filePath, buffer);
 }
 
-// ===== Controller (Không đổi) =====
+// ===== Controller (Đã thêm Tùy chọn đảo ngẫu nhiên) =====
 const generateExams = [
   upload.single("file"),
   async (req, res) => {
@@ -226,9 +234,14 @@ const generateExams = [
           .json({ success: false, message: "No file uploaded" });
       }
 
-      const numFiles = Math.max(1, parseInt(req.body.numFiles || "1", 10));
+      const numFiles = Math.max(1, parseInt(req.body.numFiles || "1", 10)); // Đọc tùy chọn từ frontend (giả sử gửi lên là chuỗi "true" hoặc "false")
+      // const shouldShuffleQuestions = req.body.shuffleQuestions === "true";
+      // const shouldShuffleAnswers = req.body.shuffleAnswers === "true";
 
-      const questions = await parseDocxQuestions(uploadedFilePath);
+      const shouldShuffleQuestions = true;
+      const shouldShuffleAnswers = true;
+
+      let questions = await parseDocxQuestions(uploadedFilePath);
 
       if (questions.length === 0) {
         return res.status(400).json({
@@ -253,18 +266,26 @@ const generateExams = [
       const filesToCleanup = [];
 
       for (let i = 1; i <= numFiles; i++) {
-        const shuffledQuestions = _.shuffle(questions).map((q) => {
-          const originalCorrectAnswer = q.answers[q.correct];
-          const shuffledAnswers = _.shuffle(q.answers);
-          const newCorrectIndex = shuffledAnswers.indexOf(
-            originalCorrectAnswer
-          );
+        // Áp dụng đảo câu hỏi
+        let shuffledQuestions = shouldShuffleQuestions
+          ? _.shuffle(questions)
+          : [...questions]; // Áp dụng đảo đáp án
 
-          return {
-            question: q.question,
-            answers: shuffledAnswers,
-            correct: newCorrectIndex,
-          };
+        shuffledQuestions = shuffledQuestions.map((q) => {
+          // Chỉ đảo đáp án nếu người dùng chọn
+          if (shouldShuffleAnswers) {
+            const originalCorrectAnswer = q.answers[q.correct];
+            const shuffledAnswers = _.shuffle(q.answers);
+            const newCorrectIndex = shuffledAnswers.indexOf(
+              originalCorrectAnswer
+            );
+            return {
+              question: q.question,
+              answers: shuffledAnswers,
+              correct: newCorrectIndex,
+            };
+          }
+          return q; // Trả về câu hỏi không đảo nếu không chọn
         });
 
         const examFileName = `De_so_${i}.docx`;

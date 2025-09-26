@@ -9,7 +9,7 @@ const AdmZip = require("adm-zip");
 const xml2js = require("xml2js");
 const xlsx = require("xlsx");
 
-// multer config
+// multer config (Không đổi)
 const storage = multer.diskStorage({
   destination: "uploads/exams/",
   filename: (req, file, cb) =>
@@ -28,7 +28,7 @@ async function extractDocxXML(docxPath) {
   return parser.parseStringPromise(xml);
 }
 
-// ===== Helper: Phân tích một paragraph (<w:p>) trong XML (Không đổi) =====
+// ===== Helper: Phân tích một paragraph (<w:p>) trong XML (Đã FIX triệt để lỗi ký hiệu) =====
 function parseParagraph(p) {
   let runs = _.get(p, "w:r", []);
   if (!Array.isArray(runs)) {
@@ -36,35 +36,48 @@ function parseParagraph(p) {
   }
 
   let plainText = "";
-  let hasFormatting = false;
+  const runFormats = [];
 
   runs.forEach((r) => {
-    const w_t = _.get(r, "w:t", "");
-    const text = typeof w_t === "string" ? w_t : _.get(w_t, "_", "");
+    let text = _.get(r, "w:t", "");
+    if (typeof text !== "string" && _.has(r, "w:t._")) {
+      text = _.get(r, "w:t._", "");
+    } else if (typeof text !== "string") {
+      text = "";
+    }
+
+    // Thêm ký hiệu độ (degree sign) nếu nó là w:sym
+    if (_.get(r, "w:sym.w:char") === "00B0") {
+      text += "°";
+    }
+
     plainText += text;
 
-    if (!hasFormatting) {
-      const rPr = _.get(r, "w:rPr", {});
-      const isBold = _.get(rPr, "w:b") !== undefined;
-      const isUnderlined = _.get(rPr, "w:u") !== undefined;
-      const isHighlighted = _.get(rPr, "w:highlight") !== undefined;
-      const isRedColor =
-        _.get(rPr, "w:color.w:val", "").toLowerCase() === "ff0000";
+    const rPr = _.get(r, "w:rPr", {});
+    const isBold = _.get(rPr, "w:b") !== undefined;
 
-      if (isBold || isUnderlined || isHighlighted || isRedColor) {
-        hasFormatting = true;
-      }
-    }
-  });
+    runFormats.push({
+      text: text,
+      isBold: isBold,
+    });
+  }); // ------------------------ LOGIC CHUẨN HÓA KÝ HIỆU (Cải tiến mạnh mẽ) ------------------------ // 1. Chuẩn hóa 'o' hoặc '0' (số không) đứng trước 'C' hoặc 'F' thành ký hiệu độ. // Ví dụ: 80oC, 0,150C -> 80°C, 0,15°C
+
+  plainText = plainText.replace(/([0-9.,])\s*([oO0])\s*([cCfF])/g, "$1°$3"); // 2. Fix lỗi thiếu 'C' sau ký hiệu độ (°) // Ví dụ: 0,01° -> 0,01°C
+
+  plainText = plainText.replace(/([0-9.,])\s*(°)(?!\s*[CFK])/g, "$1°C"); // 3. Chuẩn hóa khoảng trắng thừa và ký tự 'K' bị mất // Ví dụ: -273 K. -> -273 K. (Nếu K. bị mất do lỗi parsing, ta không thể khôi phục 100%, // nhưng ta có thể đảm bảo K. không bị cắt sau số)
+
+  plainText = plainText.replace(/([0-9.])\s*K\s*\./g, "$1 K.");
+  plainText = plainText.replace(/([0-9.])\s*K\s*/g, "$1 K"); // Giữ K cách xa số // 4. Chuẩn hóa các ký hiệu độ C bị dính: 0C -> °C
+
+  plainText = plainText.replace(/([0-9])C\b/g, "$1°C");
 
   return {
     text: plainText.trim(),
-    hasFormatting: hasFormatting,
-    runs: runs,
+    runs: runFormats,
   };
 }
 
-// ===== Helper: Parse questions từ XML của docx (Không đổi) =====
+// ===== Helper: Parse questions từ XML của docx (Không đổi logic parsing chính) =====
 async function parseDocxQuestions(docxPath) {
   const docx = await extractDocxXML(docxPath);
   const paragraphs = _.get(docx, "w:document.w:body.w:p", []);
@@ -79,6 +92,15 @@ async function parseDocxQuestions(docxPath) {
     const isNewQuestion = /^Câu\s*\d+[.:\)]\s*/i.test(text);
     const isAnswerLine = /^[A-Z][.:\)]\s*/.test(text);
 
+    // Tái tạo lại chuỗi text và map định dạng sau khi parseParagraph đã chuẩn hóa text
+    let fullTextFromRuns = runs.map((r) => r.text).join("");
+    const charFormatMap = [];
+    runs.forEach((r) => {
+      for (let i = 0; i < r.text.length; i++) {
+        charFormatMap.push(r.isBold);
+      }
+    });
+
     if (isNewQuestion) {
       if (currentQ) {
         questions.push(currentQ);
@@ -89,64 +111,58 @@ async function parseDocxQuestions(docxPath) {
         correct: -1,
       };
     } else if (isAnswerLine && currentQ) {
-      const answerRegex = /([A-Z][.:\)]\s*.*?)(\s*(?=[B-Z][.:\)]|$))/g;
+      const answerRegex = /([A-I][.:\)]\s*.*?)(\s*(?=[B-I][.:\)]|$))/g;
       const rawAnswerParts = text.match(answerRegex);
 
       if (!rawAnswerParts || rawAnswerParts.length === 0) continue;
 
-      let fullTextFromRuns = "";
-      const formatMap = new Map();
-      let charIndex = 0;
-
-      for (const r of runs) {
-        const rPr = _.get(r, "w:rPr", {});
-        const isBold = _.get(rPr, "w:b") !== undefined;
-        const isCorrectFormat = isBold;
-
-        const runText =
-          typeof r["w:t"] === "string" ? r["w:t"] : _.get(r, "w:t._", "");
-
-        for (let i = 0; i < runText.length; i++) {
-          formatMap.set(charIndex, isCorrectFormat);
-          charIndex++;
-        }
-        fullTextFromRuns += runText;
-      }
-
       for (const part of rawAnswerParts) {
         const cleanPart = part.trim();
 
-        const answerText = cleanPart.replace(/^[A-Z][.:\)]\s*/, "").trim();
+        let answerText = cleanPart.replace(/^[A-I][.:\)]\s*/, "").trim();
 
         if (answerText) {
           currentQ.answers.push(answerText);
         } else {
           continue;
-        }
+        } // Logic kiểm tra BOLD toàn bộ (Giữ nguyên)
 
-        const answerMarkerMatch = cleanPart.match(/^[A-Z][.:\)]/);
+        const answerMarkerMatch = cleanPart.match(/^[A-I][.:\)]/);
         if (!answerMarkerMatch) continue;
         const answerMarker = answerMarkerMatch[0];
 
-        const partStartIndex = fullTextFromRuns.indexOf(part.trim());
-
-        if (partStartIndex === -1) continue;
-
-        let checkIndex = -1;
-        const startSearchIndex = partStartIndex + answerMarker.length;
+        let contentStartIndex = -1;
+        let startSearchIndex =
+          fullTextFromRuns.indexOf(answerMarker) + answerMarker.length;
 
         for (let i = startSearchIndex; i < fullTextFromRuns.length; i++) {
           if (fullTextFromRuns[i].trim() !== "") {
-            checkIndex = i;
+            contentStartIndex = i;
             break;
           }
         }
 
-        if (
-          checkIndex !== -1 &&
-          formatMap.get(checkIndex) &&
-          currentQ.correct === -1
-        ) {
+        if (contentStartIndex === -1) continue;
+
+        let actualStartIndex = fullTextFromRuns.indexOf(
+          answerText,
+          contentStartIndex - 5
+        );
+        if (actualStartIndex === -1) {
+          actualStartIndex = contentStartIndex;
+        }
+
+        let actualEndIndex = actualStartIndex + answerText.length;
+
+        let isFullyBold = true;
+        for (let i = actualStartIndex; i < actualEndIndex; i++) {
+          if (fullTextFromRuns[i].trim() !== "" && !charFormatMap[i]) {
+            isFullyBold = false;
+            break;
+          }
+        }
+
+        if (isFullyBold && currentQ.correct === -1) {
           currentQ.correct = currentQ.answers.length - 1;
         }
       }
@@ -163,21 +179,16 @@ async function parseDocxQuestions(docxPath) {
   return questions;
 }
 
-// ===== Helper: Sửa lỗi chính tả (Viết hoa sau dấu chấm) =====
+// ===== Helper: Sửa lỗi chính tả (Không đổi) =====
 function fixCapitalization(text) {
   if (!text) return "";
-
-  // 1. Viết hoa ký tự đầu tiên của toàn bộ chuỗi (nếu có ký tự)
   text = text.charAt(0).toUpperCase() + text.slice(1);
-
-  // 2. Viết hoa ký tự đầu tiên sau dấu chấm, chấm hỏi, chấm than (theo sau là khoảng trắng)
-  // Regex: ([\.\?\!]\s+)([a-z])
   return text.replace(/([\.\?\!]\s*)([a-z])/g, (match, separator, letter) => {
     return separator + letter.toUpperCase();
   });
 }
 
-// ===== Sinh file Word (Đã thêm Sửa lỗi chính tả) =====
+// ===== Sinh file Word (Không đổi) =====
 async function createExamFile(questions, filePath) {
   const children = [];
 
@@ -220,7 +231,7 @@ async function createExamFile(questions, filePath) {
   fs.writeFileSync(filePath, buffer);
 }
 
-// ===== Controller (Đã thêm Tùy chọn đảo ngẫu nhiên) =====
+// ===== Controller (Không đổi) =====
 const generateExams = [
   upload.single("file"),
   async (req, res) => {
@@ -234,12 +245,9 @@ const generateExams = [
           .json({ success: false, message: "No file uploaded" });
       }
 
-      const numFiles = Math.max(1, parseInt(req.body.numFiles || "1", 10)); // Đọc tùy chọn từ frontend (giả sử gửi lên là chuỗi "true" hoặc "false")
-      // const shouldShuffleQuestions = req.body.shuffleQuestions === "true";
-      // const shouldShuffleAnswers = req.body.shuffleAnswers === "true";
-
-      const shouldShuffleQuestions = true;
-      const shouldShuffleAnswers = true;
+      const numFiles = Math.max(1, parseInt(req.body.numFiles || "1", 10));
+      const shouldShuffleQuestions = req.body.shuffleQuestions === "true";
+      const shouldShuffleAnswers = req.body.shuffleAnswers === "true";
 
       let questions = await parseDocxQuestions(uploadedFilePath);
 
@@ -266,13 +274,11 @@ const generateExams = [
       const filesToCleanup = [];
 
       for (let i = 1; i <= numFiles; i++) {
-        // Áp dụng đảo câu hỏi
         let shuffledQuestions = shouldShuffleQuestions
           ? _.shuffle(questions)
-          : [...questions]; // Áp dụng đảo đáp án
+          : [...questions];
 
         shuffledQuestions = shuffledQuestions.map((q) => {
-          // Chỉ đảo đáp án nếu người dùng chọn
           if (shouldShuffleAnswers) {
             const originalCorrectAnswer = q.answers[q.correct];
             const shuffledAnswers = _.shuffle(q.answers);
@@ -285,7 +291,7 @@ const generateExams = [
               correct: newCorrectIndex,
             };
           }
-          return q; // Trả về câu hỏi không đảo nếu không chọn
+          return q;
         });
 
         const examFileName = `De_so_${i}.docx`;
