@@ -98,7 +98,7 @@ const createCuocthi = async (req, res) => {
 const getCuocthiList = async (req, res) => {
   try {
     const [rows] = await connection.query(
-      "SELECT id, tieude, socauhoi, batdau, ketthuc FROM cuocthi ORDER BY id DESC"
+      "SELECT id, tieude, image, ngaytao, batdau, ketthuc FROM cuocthi ORDER BY id DESC"
     );
     res.json(rows);
   } catch (err) {
