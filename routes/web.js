@@ -72,12 +72,12 @@ router.post("/cuocthi", cuocthiController.createCuocthi);
 router.get("/cuocthi", cuocthiController.getCuocthiList);
 
 // READ DETAIL
-router.get("/cuocthi:id", cuocthiController.getCuocthiById);
+router.get("/cuocthi/:id", cuocthiController.getCuocthiById);
 
 // UPDATE
-router.put("/cuocthi:id", cuocthiController.updateCuocthi);
+router.put("/cuocthi/:id", cuocthiController.updateCuocthi);
 
 // DELETE
-router.delete("/cuocthi:id", cuocthiController.deleteCuocthi);
+router.delete("/cuocthi/:id", cuocthiController.deleteCuocthi);
 
 module.exports = router;

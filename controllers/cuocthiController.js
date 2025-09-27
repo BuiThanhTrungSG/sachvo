@@ -108,6 +108,7 @@ const getCuocthiList = async (req, res) => {
 // ============ GET DETAIL ============
 const getCuocthiById = async (req, res) => {
   const { id } = req.params;
+  console.log(id);
   try {
     const [ctRows] = await connection.query(
       "SELECT * FROM cuocthi WHERE id=?",
