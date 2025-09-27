@@ -5,7 +5,6 @@ const createCuocthi = async (req, res) => {
   const {
     tieude,
     image,
-    socauhoi,
     batdau,
     ketthuc,
     ngaysinh,
@@ -29,12 +28,11 @@ const createCuocthi = async (req, res) => {
     // Insert cuocthi
     const [result] = await conn.query(
       `INSERT INTO cuocthi 
-        (tieude, image, socauhoi, batdau, ketthuc, ngaysinh, diachi, sodienthoai, email, cancuoc, noilamviec, xemdiem, xemdapan, daodapan, password)
+        (tieude, image, batdau, ketthuc, ngaysinh, diachi, sodienthoai, email, cancuoc, noilamviec, xemdiem, xemdapan, daodapan, password)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         tieude,
         image || null,
-        socauhoi || 0,
         batdau,
         ketthuc || null,
         ngaysinh || 0,
@@ -154,7 +152,6 @@ const updateCuocthi = async (req, res) => {
   const {
     tieude,
     image,
-    socauhoi,
     batdau,
     ketthuc,
     ngaysinh,
@@ -177,11 +174,10 @@ const updateCuocthi = async (req, res) => {
 
     // Update main
     await conn.query(
-      `UPDATE cuocthi SET tieude=?, image=?, socauhoi=?, batdau=?, ketthuc=?, ngaysinh=?, diachi=?, sodienthoai=?, email=?, cancuoc=?, noilamviec=?, xemdiem=?, xemdapan=?, daodapan=?, password=? WHERE id=?`,
+      `UPDATE cuocthi SET tieude=?, image=?, batdau=?, ketthuc=?, ngaysinh=?, diachi=?, sodienthoai=?, email=?, cancuoc=?, noilamviec=?, xemdiem=?, xemdapan=?, daodapan=?, password=? WHERE id=?`,
       [
         tieude,
         image || null,
-        socauhoi || 0,
         batdau,
         ketthuc || null,
         ngaysinh || 0,
