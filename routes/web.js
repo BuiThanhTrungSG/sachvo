@@ -77,10 +77,9 @@ router.post(
 // API sinh đề
 router.post("/exams", createExam);
 
-// =============================================================
-// CUOCTHI
-// CREATE - Gắn middleware upload ảnh
-// 'image' phải trùng với tên field trong FormData của frontend
+// API CUOC THI
+
+// CREAT CUOCTHI
 router.post(
   "/cuocthi",
   cuocthiUpload.single("image"),

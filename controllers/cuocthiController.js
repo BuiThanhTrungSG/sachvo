@@ -114,6 +114,61 @@ const createCuocthi = async (req, res) => {
   }
 };
 
+// ============ GET LIST ============
+const getCuocthiList = async (req, res) => {
+  try {
+    const [rows] = await connection.query(
+      "SELECT id, tieude, image, ngaytao, batdau, ketthuc FROM cuocthi ORDER BY id DESC"
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("getCuocthiList error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ============ GET DETAIL ============
+const getCuocthiById = async (req, res) => {
+  const { id } = req.params;
+  console.log(id);
+  try {
+    const [ctRows] = await connection.query(
+      "SELECT * FROM cuocthi WHERE id=?",
+      [id]
+    );
+    if (ctRows.length === 0)
+      return res.status(404).json({ error: "Cuộc thi không tồn tại" });
+
+    const cuocthi = ctRows[0];
+
+    // workplaces
+    const [wps] = await connection.query(
+      "SELECT id, tennoilamviec FROM noilamviec WHERE id_cuocthi=?",
+      [id]
+    );
+    cuocthi.workplaces = wps;
+
+    // questions + answers
+    const [qs] = await connection.query(
+      "SELECT * FROM cauhoi WHERE id_cuocthi=?",
+      [id]
+    );
+    for (let q of qs) {
+      const [as] = await connection.query(
+        "SELECT * FROM dapan WHERE id_cauhoi=?",
+        [q.id]
+      );
+      q.answers = as;
+    }
+    cuocthi.questions = qs;
+
+    res.json(cuocthi);
+  } catch (err) {
+    console.error("getCuocthiById error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 // ============ UPDATE ============
 const updateCuocthi = async (req, res) => {
   const { id } = req.params;
@@ -259,6 +314,7 @@ const deleteCuocthi = async (req, res) => {
 module.exports = {
   createCuocthi,
   updateCuocthi,
+  getCuocthiList,
+  getCuocthiById,
   deleteCuocthi,
-  // ... các hàm export khác
 };
