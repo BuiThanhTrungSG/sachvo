@@ -37,7 +37,7 @@ const createCuocthi = async (req, res) => {
     password,
     thoigian,
   } = req.body;
-  console.log(req.body);
+  console.log(req);
   // Dữ liệu mảng/object từ FormData thường là JSON string, cần parse lại
   const questions = req.body.questions ? JSON.parse(req.body.questions) : [];
   const workplaces = req.body.workplaces ? JSON.parse(req.body.workplaces) : [];
