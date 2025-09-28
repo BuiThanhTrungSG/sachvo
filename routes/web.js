@@ -14,7 +14,7 @@ const {
 } = require("../controllers/adminController");
 
 const cuocthiController = require("../controllers/cuocthiController");
-const exams = require("../controllers/exams");
+const createExam = require("../controllers/exams");
 
 const router = express.Router();
 const multer = require("multer");
@@ -36,6 +36,20 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage });
+
+// =============================================================
+// BỔ SUNG: Cấu hình multer riêng cho cuocthi
+const cuocthiStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Tất cả ảnh của cuộc thi đều vào thư mục này
+    cb(null, "uploads/cuocthi/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
+});
+const cuocthiUpload = multer({ storage: cuocthiStorage });
+// =============================================================
 
 // PAYMENT
 router.post("/create-payment", createPayment);
@@ -60,13 +74,18 @@ router.post(
   adminCreateProduct
 );
 
-// CUOCTHI
-
 // API sinh đề
-router.post("/exams", exams);
+router.post("/exams", createExam);
 
-// CREATE
-router.post("/cuocthi", cuocthiController.createCuocthi);
+// =============================================================
+// CUOCTHI
+// CREATE - Gắn middleware upload ảnh
+// 'image' phải trùng với tên field trong FormData của frontend
+router.post(
+  "/cuocthi",
+  cuocthiUpload.single("image"),
+  cuocthiController.createCuocthi
+);
 
 // READ LIST
 router.get("/cuocthi", cuocthiController.getCuocthiList);
@@ -74,10 +93,15 @@ router.get("/cuocthi", cuocthiController.getCuocthiList);
 // READ DETAIL
 router.get("/cuocthi/:id", cuocthiController.getCuocthiById);
 
-// UPDATE
-router.put("/cuocthi/:id", cuocthiController.updateCuocthi);
+// UPDATE - Gắn middleware upload ảnh
+router.put(
+  "/cuocthi/:id",
+  cuocthiUpload.single("image"),
+  cuocthiController.updateCuocthi
+);
 
 // DELETE
 router.delete("/cuocthi/:id", cuocthiController.deleteCuocthi);
+// =============================================================
 
 module.exports = router;
