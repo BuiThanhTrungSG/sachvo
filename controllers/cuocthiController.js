@@ -36,6 +36,7 @@ const createCuocthi = async (req, res) => {
     daodapan,
     password,
     thoigian,
+    nguoidung,
   } = req.body;
   console.log(req.body);
   // Dữ liệu mảng/object từ FormData thường là JSON string, cần parse lại
@@ -51,7 +52,7 @@ const createCuocthi = async (req, res) => {
 
     const [result] = await conn.query(
       `INSERT INTO cuocthi 
-         (tieude, image, batdau, ketthuc, ngaysinh, diachi, sodienthoai, email, cancuoc, noilamviec, xemdiem, xemdapan, daodapan, password, thoigian)
+         (tieude, image, batdau, ketthuc, ngaysinh, diachi, sodienthoai, email, cancuoc, noilamviec, xemdiem, xemdapan, daodapan, password, thoigian, nguoidung)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         tieude,
@@ -69,6 +70,7 @@ const createCuocthi = async (req, res) => {
         daodapan || 1,
         password || null,
         thoigian || null,
+        nguoidung || null,
       ]
     );
 
@@ -187,6 +189,7 @@ const updateCuocthi = async (req, res) => {
     daodapan,
     password,
     thoigian,
+    nguoidung,
   } = req.body;
 
   const questions = req.body.questions ? JSON.parse(req.body.questions) : [];
@@ -215,7 +218,7 @@ const updateCuocthi = async (req, res) => {
 
     // 3. Cập nhật thông tin cuộc thi
     await conn.query(
-      `UPDATE cuocthi SET tieude=?, image=?, batdau=?, ketthuc=?, ngaysinh=?, diachi=?, sodienthoai=?, email=?, cancuoc=?, noilamviec=?, xemdiem=?, xemdapan=?, daodapan=?, password=?, thoigian=? WHERE id=?`,
+      `UPDATE cuocthi SET tieude=?, image=?, batdau=?, ketthuc=?, ngaysinh=?, diachi=?, sodienthoai=?, email=?, cancuoc=?, noilamviec=?, xemdiem=?, xemdapan=?, daodapan=?, password=?, thoigian=?, nguoidung=? WHERE id=?`,
       [
         tieude,
         imagePath,
@@ -232,6 +235,7 @@ const updateCuocthi = async (req, res) => {
         daodapan || 1,
         password || null,
         thoigian || null,
+        nguoidung || null,
         id,
       ]
     );
