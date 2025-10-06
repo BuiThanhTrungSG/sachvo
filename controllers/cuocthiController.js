@@ -53,7 +53,7 @@ const createCuocthi = async (req, res) => {
     const [result] = await conn.query(
       `INSERT INTO cuocthi 
          (tieude, image, batdau, ketthuc, ngaysinh, diachi, sodienthoai, email, cancuoc, noilamviec, xemdiem, xemdapan, daodapan, password, thoigian, nguoidung)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         tieude,
         imagePath, // Lưu đường dẫn tương đối vào DB
