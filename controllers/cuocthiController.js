@@ -37,8 +37,8 @@ const createCuocthi = async (req, res) => {
     password,
     thoigian,
     nguoidung,
+    donvi,
   } = req.body;
-  console.log(req.body);
   // Dữ liệu mảng/object từ FormData thường là JSON string, cần parse lại
   const questions = req.body.questions ? JSON.parse(req.body.questions) : [];
   const workplaces = req.body.workplaces ? JSON.parse(req.body.workplaces) : [];
@@ -52,8 +52,8 @@ const createCuocthi = async (req, res) => {
 
     const [result] = await conn.query(
       `INSERT INTO cuocthi 
-         (tieude, image, batdau, ketthuc, ngaysinh, diachi, sodienthoai, email, cancuoc, noilamviec, xemdiem, xemdapan, daodapan, password, thoigian, nguoidung)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (tieude, image, batdau, ketthuc, ngaysinh, diachi, sodienthoai, email, cancuoc, noilamviec, xemdiem, xemdapan, daodapan, password, thoigian, nguoidung, donvi)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         tieude,
         imagePath, // Lưu đường dẫn tương đối vào DB
@@ -71,6 +71,7 @@ const createCuocthi = async (req, res) => {
         password || null,
         thoigian || null,
         nguoidung || null,
+        donvi || null,
       ]
     );
 
@@ -190,6 +191,7 @@ const updateCuocthi = async (req, res) => {
     password,
     thoigian,
     nguoidung,
+    donvi,
   } = req.body;
 
   const questions = req.body.questions ? JSON.parse(req.body.questions) : [];
@@ -218,7 +220,7 @@ const updateCuocthi = async (req, res) => {
 
     // 3. Cập nhật thông tin cuộc thi
     await conn.query(
-      `UPDATE cuocthi SET tieude=?, image=?, batdau=?, ketthuc=?, ngaysinh=?, diachi=?, sodienthoai=?, email=?, cancuoc=?, noilamviec=?, xemdiem=?, xemdapan=?, daodapan=?, password=?, thoigian=?, nguoidung=? WHERE id=?`,
+      `UPDATE cuocthi SET tieude=?, image=?, batdau=?, ketthuc=?, ngaysinh=?, diachi=?, sodienthoai=?, email=?, cancuoc=?, noilamviec=?, xemdiem=?, xemdapan=?, daodapan=?, password=?, thoigian=?, nguoidung=?, donvi=? WHERE id=?`,
       [
         tieude,
         imagePath,
@@ -236,6 +238,7 @@ const updateCuocthi = async (req, res) => {
         password || null,
         thoigian || null,
         nguoidung || null,
+        donvi || null,
         id,
       ]
     );
