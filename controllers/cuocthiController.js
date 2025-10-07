@@ -138,7 +138,7 @@ const getCuocthiById = async (req, res) => {
 
   try {
     const [ctRows] = await connection.query(
-      "SELECT * FROM cuocthi WHERE id=? AND userId=?",
+      "SELECT * FROM cuocthi WHERE id=? AND donvi=?",
       [id, userId]
     );
     if (ctRows.length === 0)
