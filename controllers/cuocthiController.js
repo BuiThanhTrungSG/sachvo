@@ -134,10 +134,12 @@ const getCuocthiList = async (req, res) => {
 // ============ GET DETAIL ============
 const getCuocthiById = async (req, res) => {
   const { id } = req.params;
+  const { userId } = req.query; // lấy từ query string
+
   try {
     const [ctRows] = await connection.query(
-      "SELECT * FROM cuocthi WHERE id=?",
-      [id]
+      "SELECT * FROM cuocthi WHERE id=? AND userId=?",
+      [id, userId]
     );
     if (ctRows.length === 0)
       return res.status(404).json({ error: "Cuộc thi không tồn tại" });
