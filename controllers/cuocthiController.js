@@ -174,6 +174,48 @@ const getCuocthiById = async (req, res) => {
   }
 };
 
+// ============ GET VAO THI ============
+const getVaoThi = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [ctRows] = await connection.query(
+      "SELECT id, tieude, image, batdau, ketthuc, ngaysinh, diachi, sodienthoai, email, cancuoc, noilamviec, xemdiem, xemdapan, password, thoigian, donvi FROM cuocthi WHERE id=?",
+      [id]
+    );
+    if (ctRows.length === 0)
+      return res.status(404).json({ error: "Cuộc thi không tồn tại" });
+
+    const cuocthi = ctRows[0];
+
+    // workplaces
+    const [wps] = await connection.query(
+      "SELECT id, tennoilamviec FROM noilamviec WHERE id_cuocthi=?",
+      [id]
+    );
+    cuocthi.workplaces = wps;
+
+    // questions + answers
+    const [qs] = await connection.query(
+      "SELECT * FROM cauhoi WHERE id_cuocthi=?",
+      [id]
+    );
+    for (let q of qs) {
+      const [as] = await connection.query(
+        "SELECT * FROM dapan WHERE id_cauhoi=?",
+        [q.id]
+      );
+      q.answers = as;
+    }
+    cuocthi.questions = qs;
+
+    res.json(cuocthi);
+  } catch (err) {
+    console.error("getCuocthiById error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 // ============ UPDATE ============
 const updateCuocthi = async (req, res) => {
   const { id } = req.params;
@@ -326,4 +368,5 @@ module.exports = {
   getCuocthiList,
   getCuocthiById,
   deleteCuocthi,
+  getVaoThi,
 };
