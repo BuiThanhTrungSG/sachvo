@@ -38,6 +38,7 @@ const createCuocthi = async (req, res) => {
     thoigian,
     nguoidung,
     donvi,
+    socauhoi,
   } = req.body;
   // Dữ liệu mảng/object từ FormData thường là JSON string, cần parse lại
   const questions = req.body.questions ? JSON.parse(req.body.questions) : [];
@@ -52,8 +53,8 @@ const createCuocthi = async (req, res) => {
 
     const [result] = await conn.query(
       `INSERT INTO cuocthi 
-         (tieude, image, batdau, ketthuc, ngaysinh, diachi, sodienthoai, email, cancuoc, noilamviec, xemdiem, xemdapan, daodapan, password, thoigian, nguoidung, donvi)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (tieude, image, batdau, ketthuc, ngaysinh, diachi, sodienthoai, email, cancuoc, noilamviec, xemdiem, xemdapan, daodapan, password, thoigian, nguoidung, donvi, socauhoi)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         tieude,
         imagePath, // Lưu đường dẫn tương đối vào DB
@@ -72,6 +73,7 @@ const createCuocthi = async (req, res) => {
         thoigian || null,
         nguoidung || null,
         donvi || null,
+        socauhoi || 0,
       ]
     );
 
@@ -180,7 +182,7 @@ const getVaoThi = async (req, res) => {
 
   try {
     const [ctRows] = await connection.query(
-      "SELECT id, tieude, image, batdau, ketthuc, ngaysinh, diachi, sodienthoai, email, cancuoc, noilamviec, xemdiem, xemdapan, password, thoigian, donvi FROM cuocthi WHERE id=?",
+      "SELECT id, tieude, image, batdau, ketthuc, ngaysinh, diachi, sodienthoai, email, cancuoc, noilamviec, xemdiem, xemdapan, password, thoigian, donvi, socauhoi FROM cuocthi WHERE id=?",
       [id]
     );
     if (ctRows.length === 0)
@@ -236,6 +238,7 @@ const updateCuocthi = async (req, res) => {
     thoigian,
     nguoidung,
     donvi,
+    socauhoi,
   } = req.body;
 
   const questions = req.body.questions ? JSON.parse(req.body.questions) : [];
@@ -264,7 +267,7 @@ const updateCuocthi = async (req, res) => {
 
     // 3. Cập nhật thông tin cuộc thi
     await conn.query(
-      `UPDATE cuocthi SET tieude=?, image=?, batdau=?, ketthuc=?, ngaysinh=?, diachi=?, sodienthoai=?, email=?, cancuoc=?, noilamviec=?, xemdiem=?, xemdapan=?, daodapan=?, password=?, thoigian=?, nguoidung=?, donvi=? WHERE id=?`,
+      `UPDATE cuocthi SET tieude=?, image=?, batdau=?, ketthuc=?, ngaysinh=?, diachi=?, sodienthoai=?, email=?, cancuoc=?, noilamviec=?, xemdiem=?, xemdapan=?, daodapan=?, password=?, thoigian=?, nguoidung=?, donvi=?, socauhoi=? WHERE id=?`,
       [
         tieude,
         imagePath,
@@ -283,6 +286,7 @@ const updateCuocthi = async (req, res) => {
         thoigian || null,
         nguoidung || null,
         donvi || null,
+        socauhoi || 0,
         id,
       ]
     );
