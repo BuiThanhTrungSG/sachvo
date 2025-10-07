@@ -119,9 +119,11 @@ const createCuocthi = async (req, res) => {
 
 // ============ GET LIST ============
 const getCuocthiList = async (req, res) => {
+  const { userId } = req.query; // lấy từ query string
   try {
     const [rows] = await connection.query(
-      "SELECT id, tieude, image, ngaytao, batdau, ketthuc, donvi FROM cuocthi ORDER BY id DESC"
+      "SELECT id, tieude, image, ngaytao, batdau, ketthuc, donvi FROM cuocthi WHERE nguoidung=? ORDER BY id DESC",
+      [userId]
     );
     res.json(rows);
   } catch (err) {
@@ -129,11 +131,9 @@ const getCuocthiList = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
 // ============ GET DETAIL ============
 const getCuocthiById = async (req, res) => {
   const { id } = req.params;
-  console.log(id);
   try {
     const [ctRows] = await connection.query(
       "SELECT * FROM cuocthi WHERE id=?",
