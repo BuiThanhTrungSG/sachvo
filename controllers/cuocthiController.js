@@ -18,15 +18,32 @@ const deleteFile = (filePath) => {
     }
   }
 };
-// Hàm tiện ích để xóa file một cách an toàn
-// const deleteFile = (filePath) => {
-//   if (!filePath) return;
-//   const fullPath = path.resolve(filePath);
-//   fs.unlink(fullPath, (err) => {
-//     if (err) console.error(`Failed to delete file: ${fullPath}`, err);
-//   });
-// };
 
+const deleteFile2 = (relativePath) => {
+  if (!relativePath) {
+    return; // Thoát sớm nếu không có đường dẫn
+  }
+
+  // 1. Tạo đường dẫn tuyệt đối từ thư mục gốc của dự án.
+  // Đây là cách làm đáng tin cậy nhất.
+  const absolutePath = path.resolve(process.cwd(), relativePath);
+
+  // 2. Sử dụng fs.unlink (bất đồng bộ) để xóa file.
+  // Không cần kiểm tra fs.existsSync trước vì fs.unlink sẽ báo lỗi nếu file không tồn tại.
+  fs.unlink(absolutePath, (err) => {
+    if (err) {
+      // Nếu lỗi là do file không tồn tại, có thể bỏ qua một cách an toàn.
+      if (err.code === "ENOENT") {
+        console.warn(`File không tồn tại để xóa: ${absolutePath}`);
+      } else {
+        // Ghi lại các lỗi khác (ví dụ: lỗi quyền truy cập).
+        console.error(`Lỗi khi xóa file ${absolutePath}:`, err);
+      }
+    } else {
+      console.log(`Đã xóa file cũ thành công: ${absolutePath}`);
+    }
+  });
+};
 // ============ CREATE CUOCTHI ============
 const createCuocthi = async (req, res) => {
   const {
@@ -249,8 +266,6 @@ const updateCuocthi = async (req, res) => {
     socauhoi,
   } = req.body;
 
-  console.log("typeof req.body.questions:", typeof req.body.questions);
-  console.log("req.body.questions:", req.body.questions);
   // Parse dữ liệu mảng từ FormData
   const questions = req.body.questions ? JSON.parse(req.body.questions) : [];
   const workplaces = req.body.workplaces ? JSON.parse(req.body.workplaces) : [];
@@ -348,7 +363,7 @@ const updateCuocthi = async (req, res) => {
 
     // Xóa ảnh cũ nếu đã tải lên ảnh mới thành công
     if (newImagePath && oldImagePath) {
-      deleteFile(oldImagePath);
+      deleteFile2(oldImagePath);
     }
 
     res.json({ success: true, cuocthiId: parseInt(cuocthiId) });
@@ -358,7 +373,7 @@ const updateCuocthi = async (req, res) => {
 
     // Xóa file mới đã upload nếu có lỗi xảy ra
     if (newImagePath) {
-      deleteFile(newImagePath);
+      deleteFile2(newImagePath);
     }
 
     console.error("updateCuocthi error:", err);
