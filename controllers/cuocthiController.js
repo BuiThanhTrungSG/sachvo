@@ -249,6 +249,8 @@ const updateCuocthi = async (req, res) => {
     socauhoi,
   } = req.body;
 
+  console.log("typeof req.body.questions:", typeof req.body.questions);
+  console.log("req.body.questions:", req.body.questions);
   // Parse dữ liệu mảng từ FormData
   const questions = req.body.questions ? JSON.parse(req.body.questions) : [];
   const workplaces = req.body.workplaces ? JSON.parse(req.body.workplaces) : [];
