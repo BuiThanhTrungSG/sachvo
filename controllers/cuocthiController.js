@@ -18,6 +18,14 @@ const deleteFile = (filePath) => {
     }
   }
 };
+// Hàm tiện ích để xóa file một cách an toàn
+// const deleteFile = (filePath) => {
+//   if (!filePath) return;
+//   const fullPath = path.resolve(filePath);
+//   fs.unlink(fullPath, (err) => {
+//     if (err) console.error(`Failed to delete file: ${fullPath}`, err);
+//   });
+// };
 
 // ============ CREATE CUOCTHI ============
 const createCuocthi = async (req, res) => {
@@ -220,7 +228,7 @@ const getVaoThi = async (req, res) => {
 
 // ============ UPDATE ============
 const updateCuocthi = async (req, res) => {
-  const { id } = req.params;
+  const { id: cuocthiId } = req.params; // Lấy ID cuộc thi từ URL
   const {
     tieude,
     batdau,
@@ -241,36 +249,40 @@ const updateCuocthi = async (req, res) => {
     socauhoi,
   } = req.body;
 
+  // Parse dữ liệu mảng từ FormData
   const questions = req.body.questions ? JSON.parse(req.body.questions) : [];
   const workplaces = req.body.workplaces ? JSON.parse(req.body.workplaces) : [];
+
+  // Lấy đường dẫn file ảnh mới (nếu có)
+  const newImagePath = req.file ? "uploads/cuocthi/" + req.file.filename : null;
 
   const conn = await connection.getConnection();
   try {
     await conn.beginTransaction();
 
-    // 1. Lấy thông tin ảnh cũ
-    const [oldCuocthi] = await conn.query(
+    // 1. Lấy đường dẫn ảnh cũ để xóa sau này nếu có ảnh mới
+    const [[existingCuocthi]] = await conn.query(
       "SELECT image FROM cuocthi WHERE id = ?",
-      [id]
+      [cuocthiId]
     );
-    let imagePath = oldCuocthi.length > 0 ? oldCuocthi[0].image : null;
-
-    // 2. Nếu có file mới được upload
-    if (req.file) {
-      // Xóa file ảnh cũ nếu có
-      if (imagePath) {
-        deleteFile(imagePath);
-      }
-      // Cập nhật đường dẫn ảnh mới
-      imagePath = "uploads/cuocthi/" + req.file.filename;
+    if (!existingCuocthi) {
+      throw new Error("Contest not found");
     }
+    const oldImagePath = existingCuocthi.image;
 
-    // 3. Cập nhật thông tin cuộc thi
+    // Xác định đường dẫn ảnh cuối cùng để lưu vào DB
+    const finalImagePath = newImagePath || oldImagePath;
+
+    // 2. Cập nhật bảng `cuocthi`
     await conn.query(
-      `UPDATE cuocthi SET tieude=?, image=?, batdau=?, ketthuc=?, ngaysinh=?, diachi=?, sodienthoai=?, email=?, cancuoc=?, noilamviec=?, xemdiem=?, xemdapan=?, daodapan=?, password=?, thoigian=?, nguoidung=?, donvi=?, socauhoi=? WHERE id=?`,
+      `UPDATE cuocthi SET 
+        tieude = ?, image = ?, batdau = ?, ketthuc = ?, ngaysinh = ?, diachi = ?, sodienthoai = ?, 
+        email = ?, cancuoc = ?, noilamviec = ?, xemdiem = ?, xemdapan = ?, daodapan = ?, 
+        password = ?, thoigian = ?, nguoidung = ?, donvi = ?, socauhoi = ?
+      WHERE id = ?`,
       [
         tieude,
-        imagePath,
+        finalImagePath,
         batdau,
         ketthuc || null,
         ngaysinh || 0,
@@ -287,37 +299,66 @@ const updateCuocthi = async (req, res) => {
         nguoidung || null,
         donvi || null,
         socauhoi || 0,
-        id,
+        cuocthiId,
       ]
     );
 
-    // 4. Xóa và thêm lại workplaces, questions (logic tương tự create)
-    await conn.query("DELETE FROM noilamviec WHERE id_cuocthi=?", [id]);
-    for (let wp of workplaces) {
-      /* ... */
-    }
-
-    const [oldQs] = await conn.query(
-      "SELECT id FROM cauhoi WHERE id_cuocthi=?",
-      [id]
+    // 3. Xóa các dữ liệu liên quan cũ (câu hỏi, đáp án, nơi làm việc)
+    // Cần xóa đáp án trước khi xóa câu hỏi để không vi phạm foreign key
+    await conn.query(
+      `DELETE d FROM dapan d JOIN cauhoi c ON d.id_cauhoi = c.id WHERE c.id_cuocthi = ?`,
+      [cuocthiId]
     );
-    for (let q of oldQs) {
-      await conn.query("DELETE FROM dapan WHERE id_cauhoi=?", [q.id]);
-    }
-    await conn.query("DELETE FROM cauhoi WHERE id_cuocthi=?", [id]);
+    await conn.query("DELETE FROM cauhoi WHERE id_cuocthi = ?", [cuocthiId]);
+    await conn.query("DELETE FROM noilamviec WHERE id_cuocthi = ?", [
+      cuocthiId,
+    ]);
 
+    // 4. Thêm lại dữ liệu nơi làm việc (giống hệt hàm create)
+    for (let wp of workplaces) {
+      if (wp && wp.trim() !== "") {
+        await conn.query(
+          "INSERT INTO noilamviec (id_cuocthi, tennoilamviec) VALUES (?, ?)",
+          [cuocthiId, wp]
+        );
+      }
+    }
+
+    // 5. Thêm lại dữ liệu câu hỏi và đáp án (giống hệt hàm create)
     for (let q of questions) {
-      /* ... */
+      if (!q.text || q.text.trim() === "") continue;
+      const [qResult] = await conn.query(
+        "INSERT INTO cauhoi (id_cuocthi, cauhoi, nhieudapan) VALUES (?, ?, ?)",
+        [cuocthiId, q.text, q.multiCorrect ? 1 : 0]
+      );
+      const cauhoiId = qResult.insertId;
+      for (let ans of q.answers) {
+        if (!ans.text || ans.text.trim() === "") continue;
+        await conn.query(
+          "INSERT INTO dapan (id_cauhoi, dapan, dungsai) VALUES (?, ?, ?)",
+          [cauhoiId, ans.text, ans.correct ? 1 : 0]
+        );
+      }
     }
 
+    // Nếu mọi thứ thành công, commit transaction
     await conn.commit();
-    res.json({ success: true });
-  } catch (err) {
-    await conn.rollback();
-    // Nếu có lỗi và đã upload file mới, xóa file đó đi
-    if (req.file) {
-      deleteFile("uploads/cuocthi/" + req.file.filename);
+
+    // Xóa ảnh cũ nếu đã tải lên ảnh mới thành công
+    if (newImagePath && oldImagePath) {
+      deleteFile(oldImagePath);
     }
+
+    res.json({ success: true, cuocthiId: parseInt(cuocthiId) });
+  } catch (err) {
+    // Nếu có lỗi, rollback tất cả thay đổi
+    await conn.rollback();
+
+    // Xóa file mới đã upload nếu có lỗi xảy ra
+    if (newImagePath) {
+      deleteFile(newImagePath);
+    }
+
     console.error("updateCuocthi error:", err);
     res.status(500).json({ error: "Internal Server Error" });
   } finally {
@@ -364,8 +405,6 @@ const deleteCuocthi = async (req, res) => {
   }
 };
 
-// Các hàm getCuocthiList, getCuocthiById không thay đổi
-// ...
 module.exports = {
   createCuocthi,
   updateCuocthi,
