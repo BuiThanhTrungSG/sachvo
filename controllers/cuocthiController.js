@@ -422,6 +422,66 @@ const deleteCuocthi = async (req, res) => {
   }
 };
 
+const postNopBaiThi = async (req, res) => {
+  const {
+    id_cuocthi,
+    ngaysinh,
+    diachi,
+    sodienthoai,
+    email,
+    cancuoc,
+    noilamviec,
+    hoten,
+    traloi, // Mảng các câu trả lời
+    thoigianlam, // Thời gian làm bài (giây)
+    diem, // ĐIỂM SỐ ĐÃ TÍNH SẴN TỪ FRONTEND (số nguyên)
+  } = req.body;
+
+  // Dữ liệu 'traloi' cần được chuyển thành JSON string để lưu vào cột 'traloi'
+  const traloiJson = JSON.stringify(traloi);
+  const conn = await connection.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    // LƯU BÀI THI VÀO DB
+    // NOTE: Cột 'diem' trong bảng baithi là INT, cần đảm bảo giá trị gửi về là số.
+    const scoreToSave = parseInt(diem, 10) || 0;
+
+    const [result] = await conn.query(
+      `INSERT INTO baithi (id_cuocthi, ngaysinh, diachi, sodienthoai, email, cancuoc, noilamviec, hoten, traloi, gionopbai, thoigianlam, diem)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
+      [
+        id_cuocthi,
+        ngaysinh || null,
+        diachi || null,
+        sodienthoai || null,
+        email || null,
+        cancuoc || null,
+        noilamviec || null,
+        hoten || null,
+        traloiJson,
+        thoigianlam,
+        scoreToSave, // Lưu điểm đã được frontend tính
+      ]
+    );
+
+    await conn.commit();
+    res.json({
+      success: true,
+      baithiId: result.insertId,
+      diem: scoreToSave,
+      tongcauhoi: traloi.length,
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error("putNopBaiThi error:", err);
+    res.status(500).json({ error: "Lỗi nội bộ khi nộp bài thi." });
+  } finally {
+    conn.release();
+  }
+};
+
 module.exports = {
   createCuocthi,
   updateCuocthi,
@@ -429,4 +489,5 @@ module.exports = {
   getCuocthiById,
   deleteCuocthi,
   getVaoThi,
+  postNopBaiThi,
 };

@@ -106,4 +106,7 @@ router.delete("/cuocthi/:id", cuocthiController.deleteCuocthi);
 // VAO THI
 router.get("/vaothi/:id", cuocthiController.getVaoThi);
 
+// NOP BAI THI
+router.post("/nopbai", cuocthiController.postNopBaiThi);
+
 module.exports = router;
