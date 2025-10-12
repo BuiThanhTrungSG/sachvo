@@ -559,5 +559,5 @@ module.exports = {
   deleteCuocthi,
   getVaoThi,
   postNopBaiThi,
-  getBangXepHang,
+  getBangXepHangById,
 };
