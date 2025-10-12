@@ -482,6 +482,75 @@ const postNopBaiThi = async (req, res) => {
   }
 };
 
+const getBangXepHangById = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // 1. Kiểm tra xem cuộc thi có tồn tại bài thi nào không
+    const [ctRows] = await connection.query(
+      "SELECT id FROM baithi WHERE id_cuocthi=? LIMIT 1",
+      [id]
+    );
+    if (ctRows.length === 0) {
+      // Trả về mảng rỗng nếu không có ai thi, thay vì lỗi 404
+      return res.json({
+        xepHangCaNhan: [],
+        xepHangDonVi: [],
+      });
+    }
+
+    // 2. Query để lấy bảng xếp hạng cá nhân
+    const xepHangCaNhanQuery = `
+      SELECT
+        bt.hoten,
+        bt.diem,
+        nlv.tennoilamviec
+      FROM
+        baithi AS bt
+      LEFT JOIN
+        noilamviec AS nlv ON bt.noilamviec = nlv.id
+      WHERE
+        bt.id_cuocthi = ?
+      ORDER BY
+        bt.diem DESC,         -- Ưu tiên 1: Điểm cao nhất
+        bt.thoigianlam ASC,   -- Ưu tiên 2: Thời gian làm bài ngắn nhất
+        bt.gionopbai ASC      -- Ưu tiên 3: Nộp bài sớm nhất
+      LIMIT 3;
+    `;
+
+    // 3. Query để lấy bảng xếp hạng đơn vị
+    const xepHangDonViQuery = `
+      SELECT
+        nlv.tennoilamviec,
+        COUNT(bt.id) AS soNguoiThamGia
+      FROM
+        baithi AS bt
+      JOIN
+        noilamviec AS nlv ON bt.noilamviec = nlv.id
+      WHERE
+        bt.id_cuocthi = ?
+      GROUP BY
+        nlv.id, nlv.tennoilamviec
+      ORDER BY
+        soNguoiThamGia DESC,      -- Ưu tiên 1: Số người tham gia đông nhất
+        MIN(bt.gionopbai) ASC     -- Ưu tiên 2: Đơn vị có người nộp bài đầu tiên sớm nhất
+      LIMIT 3;
+    `;
+
+    // 4. Thực thi cả 2 query song song để tăng hiệu suất
+    const [[xepHangCaNhan], [xepHangDonVi]] = await Promise.all([
+      connection.query(xepHangCaNhanQuery, [id]),
+      connection.query(xepHangDonViQuery, [id]),
+    ]);
+
+    // 5. Trả về kết quả cho frontend dưới dạng object
+    res.json({ xepHangCaNhan, xepHangDonVi });
+  } catch (err) {
+    console.error("getBangXepHangById error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   createCuocthi,
   updateCuocthi,
@@ -490,4 +559,5 @@ module.exports = {
   deleteCuocthi,
   getVaoThi,
   postNopBaiThi,
+  getBangXepHang,
 };
