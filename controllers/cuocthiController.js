@@ -492,59 +492,80 @@ const getBangXepHangById = async (req, res) => {
       [id]
     );
     if (ctRows.length === 0) {
-      // Trả về mảng rỗng nếu không có ai thi, thay vì lỗi 404
+      // Trả về mảng rỗng nếu không có ai thi
       return res.json({
         xepHangCaNhan: [],
         xepHangDonVi: [],
+        tongSoCaNhan: 0,
+        tongSoDonVi: 0,
       });
     }
 
-    // 2. Query để lấy bảng xếp hạng cá nhân
+    // --- ĐỊNH NGHĨA CÁC QUERY MỚI ĐỂ LẤY TỔNG SỐ ---
+
+    // Query 1: Tổng số cá nhân tham gia
+    const tongSoCaNhanQuery = `
+            SELECT COUNT(id) AS total FROM baithi WHERE id_cuocthi = ?;
+        `;
+
+    // Query 2: Tổng số đơn vị có người tham gia (dùng DISTINCT)
+    const tongSoDonViQuery = `
+            SELECT COUNT(DISTINCT noilamviec) AS total FROM baithi WHERE id_cuocthi = ? AND noilamviec IS NOT NULL;
+        `;
+
+    // 2. Query để lấy bảng xếp hạng cá nhân (Giữ nguyên)
     const xepHangCaNhanQuery = `
-      SELECT
-        bt.hoten,
-        bt.diem,
-        nlv.tennoilamviec
-      FROM
-        baithi AS bt
-      LEFT JOIN
-        noilamviec AS nlv ON bt.noilamviec = nlv.id
-      WHERE
-        bt.id_cuocthi = ?
-      ORDER BY
-        bt.diem DESC,         -- Ưu tiên 1: Điểm cao nhất
-        bt.thoigianlam ASC,   -- Ưu tiên 2: Thời gian làm bài ngắn nhất
-        bt.gionopbai ASC      -- Ưu tiên 3: Nộp bài sớm nhất
-      LIMIT 3;
-    `;
+            SELECT
+                bt.hoten,
+                bt.diem,
+                nlv.tennoilamviec
+            FROM
+                baithi AS bt
+            LEFT JOIN
+                noilamviec AS nlv ON bt.noilamviec = nlv.id
+            WHERE
+                bt.id_cuocthi = ?
+            ORDER BY
+                bt.diem DESC,
+                bt.thoigianlam ASC,
+                bt.gionopbai ASC
+            LIMIT 3;
+        `;
 
-    // 3. Query để lấy bảng xếp hạng đơn vị
+    // 3. Query để lấy bảng xếp hạng đơn vị (Giữ nguyên)
     const xepHangDonViQuery = `
-      SELECT
-        nlv.tennoilamviec,
-        COUNT(bt.id) AS soNguoiThamGia
-      FROM
-        baithi AS bt
-      JOIN
-        noilamviec AS nlv ON bt.noilamviec = nlv.id
-      WHERE
-        bt.id_cuocthi = ?
-      GROUP BY
-        nlv.id, nlv.tennoilamviec
-      ORDER BY
-        soNguoiThamGia DESC,      -- Ưu tiên 1: Số người tham gia đông nhất
-        MIN(bt.gionopbai) ASC     -- Ưu tiên 2: Đơn vị có người nộp bài đầu tiên sớm nhất
-      LIMIT 3;
-    `;
+            SELECT
+                nlv.tennoilamviec,
+                COUNT(bt.id) AS soNguoiThamGia
+            FROM
+                baithi AS bt
+            JOIN
+                noilamviec AS nlv ON bt.noilamviec = nlv.id
+            WHERE
+                bt.id_cuocthi = ?
+            GROUP BY
+                nlv.id, nlv.tennoilamviec
+            ORDER BY
+                soNguoiThamGia DESC,
+                MIN(bt.gionopbai) ASC
+            LIMIT 3;
+        `;
 
-    // 4. Thực thi cả 2 query song song để tăng hiệu suất
-    const [[xepHangCaNhan], [xepHangDonVi]] = await Promise.all([
+    // 4. Thực thi TẤT CẢ 4 query song song
+    const [
+      [xepHangCaNhan],
+      [xepHangDonVi],
+      [[{ total: tongSoCaNhan }]],
+      [[{ total: tongSoDonVi }]],
+    ] = await Promise.all([
       connection.query(xepHangCaNhanQuery, [id]),
       connection.query(xepHangDonViQuery, [id]),
+      connection.query(tongSoCaNhanQuery, [id]),
+      connection.query(tongSoDonViQuery, [id]),
     ]);
 
     // 5. Trả về kết quả cho frontend dưới dạng object
-    res.json({ xepHangCaNhan, xepHangDonVi });
+    res.json({ xepHangCaNhan, xepHangDonVi, tongSoCaNhan, tongSoDonVi });
   } catch (err) {
     console.error("getBangXepHangById error:", err);
     res.status(500).json({ error: "Internal Server Error" });
