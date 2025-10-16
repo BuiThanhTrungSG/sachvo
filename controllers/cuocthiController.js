@@ -577,7 +577,7 @@ const getKetQuaThiById = async (req, res) => {
   const {
     page = 1,
     limit = 20, // <-- Lấy limit từ query (mặc định 20)
-    sortBy = "gionopbai", // <-- Mặc định sắp xếp theo giờ nộp bài
+    sortBy = "id", // <-- Mặc định sắp xếp theo id
     sortOrder = "DESC",
   } = req.query;
 
@@ -622,8 +622,6 @@ const getKetQuaThiById = async (req, res) => {
       WHERE id_cuocthi = ? 
       ORDER BY ${dbSortField} ${order} 
       LIMIT ? OFFSET ?`;
-
-    // Bỏ lọc WHERE nguoidung = ? và giữ lại LIMIT, OFFSET
 
     const [rows] = await connection.query(query, [cuocThiId, pageSize, offset]);
 
