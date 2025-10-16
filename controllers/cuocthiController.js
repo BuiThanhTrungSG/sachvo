@@ -573,34 +573,67 @@ const getBangXepHangById = async (req, res) => {
 };
 
 const getKetQuaThiById = async (req, res) => {
-  const { userId, page = 1 } = req.query; // lấy userId và số trang từ query
-  const { id } = req.params;
-  const limit = 10; // số bản ghi mỗi trang
-  const offset = (page - 1) * limit;
+  // Lấy tham số phân trang và sắp xếp từ query
+  const {
+    page = 1,
+    limit = 20, // <-- Lấy limit từ query (mặc định 20)
+    sortBy = "gionopbai", // <-- Mặc định sắp xếp theo giờ nộp bài
+    sortOrder = "DESC",
+  } = req.query;
+
+  const { id: cuocThiId } = req.params;
+
+  // Chuyển đổi các tham số sang kiểu dữ liệu phù hợp
+  const pageSize = Number(limit);
+  const currentPage = Number(page);
+  const offset = (currentPage - 1) * pageSize;
+
+  // Lọc và xác thực trường sắp xếp dựa trên TÊN CỘT TRONG BẢNG 'baithi'
+  // (Không sử dụng tên alias của Frontend như 'diemso', 'ngaythi')
+  const validSortFields = [
+    "diem",
+    "hoten",
+    "gionopbai",
+    "thoigianlam",
+    "ngaysinh",
+    "diachi",
+    "sodienthoai",
+    "email",
+    "cancuoc",
+    "noilamviec",
+  ];
+
+  // Xác định trường sắp xếp thực tế trong DB
+  const dbSortField = validSortFields.includes(sortBy) ? sortBy : "gionopbai";
+  const order = sortOrder.toUpperCase() === "ASCEND" ? "ASC" : "DESC"; // Hỗ trợ AntD sortOrder
 
   try {
-    // Lấy dữ liệu phân trang
-    const [rows] = await connection.query(
-      "SELECT * FROM baithi WHERE nguoidung = ? AND id_cuocthi = ? LIMIT ? OFFSET ?",
-      [userId, id, limit, offset]
-    );
-
-    // Lấy tổng số bản ghi để tính tổng số trang
+    // 1. Lấy tổng số bản ghi
     const [countResult] = await connection.query(
-      "SELECT COUNT(*) AS total FROM baithi WHERE nguoidung = ? AND id_cuocthi = ?",
-      [userId, id]
+      "SELECT COUNT(*) AS total FROM baithi WHERE id_cuocthi = ?",
+      [cuocThiId]
     );
-
     const total = countResult[0].total;
-    const totalPages = Math.ceil(total / limit);
+    const totalPages = Math.ceil(total / pageSize);
+
+    // 2. Lấy dữ liệu phân trang và sắp xếp (Sử dụng SELECT *)
+    const query = `
+      SELECT * FROM baithi 
+      WHERE id_cuocthi = ? 
+      ORDER BY ${dbSortField} ${order} 
+      LIMIT ? OFFSET ?`;
+
+    // Bỏ lọc WHERE nguoidung = ? và giữ lại LIMIT, OFFSET
+
+    const [rows] = await connection.query(query, [cuocThiId, pageSize, offset]);
 
     res.json({
       data: rows,
       pagination: {
         total,
-        page: Number(page),
+        page: currentPage,
         totalPages,
-        pageSize: limit,
+        pageSize: pageSize,
       },
     });
   } catch (err) {
