@@ -583,9 +583,9 @@ const getKetQuaThiById = async (req, res) => {
   const currentPage = Number(page);
   const offset = (currentPage - 1) * pageSize;
 
-  // Lọc và xác thực trường sắp xếp dựa trên TÊN CỘT TRONG BẢNG 'baithi'
+  // Lọc và xác thực trường sắp xếp
   const validSortFields = [
-    "id", // Thêm id vào để sắp xếp mặc định hoạt động
+    "id",
     "diem",
     "hoten",
     "gionopbai",
@@ -595,12 +595,21 @@ const getKetQuaThiById = async (req, res) => {
     "sodienthoai",
     "email",
     "cancuoc",
-    "noilamviec",
+    "noilamviec", // Vẫn cho phép frontend gửi 'noilamviec'
   ];
 
-  // Xác định trường sắp xếp thực tế trong DB
-  const dbSortField = validSortFields.includes(sortBy) ? sortBy : "id"; // Sửa mặc định về id
+  const dbSortField = validSortFields.includes(sortBy) ? sortBy : "id";
   const order = sortOrder.toUpperCase() === "ASCEND" ? "ASC" : "DESC";
+
+  // SỬA: Xây dựng mệnh đề ORDER BY một cách an toàn và rõ ràng
+  let orderClause;
+  if (dbSortField === "noilamviec") {
+    // Nếu sắp xếp theo nơi làm việc, ta phải chỉ định rõ là cột tennoilamviec
+    orderClause = `noilamviec.tennoilamviec ${order}`;
+  } else {
+    // Với các cột khác, chỉ định rõ là từ bảng baithi để tránh nhầm lẫn
+    orderClause = `baithi.${dbSortField} ${order}`;
+  }
 
   try {
     // 1. Lấy tổng số bản ghi (không thay đổi)
@@ -611,16 +620,24 @@ const getKetQuaThiById = async (req, res) => {
     const total = countResult[0].total;
     const totalPages = Math.ceil(total / pageSize);
 
-    // 2. Lấy dữ liệu phân trang và sắp xếp (Sử dụng SELECT *)
-    // <-- THAY ĐỔI CÂU TRUY VẤN Ở ĐÂY -->
+    // 2. SỬA: Cập nhật lại câu truy vấn để viết tường minh các cột
     const query = `
       SELECT
-        baithi.*,
+        baithi.id,
+        baithi.hoten,
+        baithi.ngaysinh,
+        baithi.diachi,
+        baithi.sodienthoai,
+        baithi.email,
+        baithi.cancuoc,
+        baithi.diem,
+        baithi.gionopbai,
+        baithi.thoigianlam,
         noilamviec.tennoilamviec AS noilamviec
       FROM baithi
       LEFT JOIN noilamviec ON baithi.noilamviec = noilamviec.id
       WHERE baithi.id_cuocthi = ?
-      ORDER BY ${dbSortField} ${order}
+      ORDER BY ${orderClause}
       LIMIT ? OFFSET ?`;
 
     const [rows] = await connection.query(query, [cuocThiId, pageSize, offset]);
