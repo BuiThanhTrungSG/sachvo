@@ -112,4 +112,7 @@ router.post("/nopbai", cuocthiController.postNopBaiThi);
 // BANG XEP HANG
 router.get("/xephang/:id", cuocthiController.getBangXepHangById);
 
+// KẾT QUẢ THI
+router.get("/ketqua/:id", cuocthiController.getKetQuaThiById);
+
 module.exports = router;

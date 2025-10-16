@@ -572,6 +572,43 @@ const getBangXepHangById = async (req, res) => {
   }
 };
 
+const getKetQuaThiById = async (req, res) => {
+  const { userId, page = 1 } = req.query; // lấy userId và số trang từ query
+  const { id } = req.params;
+  const limit = 10; // số bản ghi mỗi trang
+  const offset = (page - 1) * limit;
+
+  try {
+    // Lấy dữ liệu phân trang
+    const [rows] = await connection.query(
+      "SELECT * FROM baithi WHERE nguoidung = ? AND id_cuocthi = ? LIMIT ? OFFSET ?",
+      [userId, id, limit, offset]
+    );
+
+    // Lấy tổng số bản ghi để tính tổng số trang
+    const [countResult] = await connection.query(
+      "SELECT COUNT(*) AS total FROM baithi WHERE nguoidung = ? AND id_cuocthi = ?",
+      [userId, id]
+    );
+
+    const total = countResult[0].total;
+    const totalPages = Math.ceil(total / limit);
+
+    res.json({
+      data: rows,
+      pagination: {
+        total,
+        page: Number(page),
+        totalPages,
+        pageSize: limit,
+      },
+    });
+  } catch (err) {
+    console.error("getKetQuaThiById error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   createCuocthi,
   updateCuocthi,
@@ -581,4 +618,5 @@ module.exports = {
   getVaoThi,
   postNopBaiThi,
   getBangXepHangById,
+  getKetQuaThiById,
 };
