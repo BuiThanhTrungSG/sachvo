@@ -574,12 +574,7 @@ const getBangXepHangById = async (req, res) => {
 
 const getKetQuaThiById = async (req, res) => {
   // Lấy tham số phân trang và sắp xếp từ query
-  const {
-    page = 1,
-    limit = 20, // <-- Lấy limit từ query (mặc định 20)
-    sortBy = "id", // <-- Mặc định sắp xếp theo id
-    sortOrder = "DESC",
-  } = req.query;
+  const { page = 1, limit = 20, sortBy = "id", sortOrder = "DESC" } = req.query;
 
   const { id: cuocThiId } = req.params;
 
@@ -589,8 +584,8 @@ const getKetQuaThiById = async (req, res) => {
   const offset = (currentPage - 1) * pageSize;
 
   // Lọc và xác thực trường sắp xếp dựa trên TÊN CỘT TRONG BẢNG 'baithi'
-  // (Không sử dụng tên alias của Frontend như 'diemso', 'ngaythi')
   const validSortFields = [
+    "id", // Thêm id vào để sắp xếp mặc định hoạt động
     "diem",
     "hoten",
     "gionopbai",
@@ -604,11 +599,11 @@ const getKetQuaThiById = async (req, res) => {
   ];
 
   // Xác định trường sắp xếp thực tế trong DB
-  const dbSortField = validSortFields.includes(sortBy) ? sortBy : "gionopbai";
-  const order = sortOrder.toUpperCase() === "ASCEND" ? "ASC" : "DESC"; // Hỗ trợ AntD sortOrder
+  const dbSortField = validSortFields.includes(sortBy) ? sortBy : "id"; // Sửa mặc định về id
+  const order = sortOrder.toUpperCase() === "ASCEND" ? "ASC" : "DESC";
 
   try {
-    // 1. Lấy tổng số bản ghi
+    // 1. Lấy tổng số bản ghi (không thay đổi)
     const [countResult] = await connection.query(
       "SELECT COUNT(*) AS total FROM baithi WHERE id_cuocthi = ?",
       [cuocThiId]
@@ -617,10 +612,15 @@ const getKetQuaThiById = async (req, res) => {
     const totalPages = Math.ceil(total / pageSize);
 
     // 2. Lấy dữ liệu phân trang và sắp xếp (Sử dụng SELECT *)
+    // <-- THAY ĐỔI CÂU TRUY VẤN Ở ĐÂY -->
     const query = `
-      SELECT * FROM baithi 
-      WHERE id_cuocthi = ? 
-      ORDER BY ${dbSortField} ${order} 
+      SELECT
+        baithi.*,
+        noilamviec.tennoilamviec AS noilamviec
+      FROM baithi
+      LEFT JOIN noilamviec ON baithi.noilamviec = noilamviec.id
+      WHERE baithi.id_cuocthi = ?
+      ORDER BY ${dbSortField} ${order}
       LIMIT ? OFFSET ?`;
 
     const [rows] = await connection.query(query, [cuocThiId, pageSize, offset]);
