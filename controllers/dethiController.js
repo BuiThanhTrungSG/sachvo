@@ -1,4 +1,4 @@
-const { GoogleGenAI } = require("@google/genai");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fs = require("fs").promises;
 const path = require("path");
 
@@ -21,7 +21,7 @@ require("dotenv").config();
 
 // (Giữ nguyên phần khởi tạo AI và hàm extractTextFromFile...)
 // ...
-const ai = new GoogleGenAI(process.env.GEMINI_API_KEY);
+const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 const extractTextFromFile = async (filePath, mimeType) => {
