@@ -14,6 +14,8 @@ const {
 } = require("../controllers/adminController");
 
 const cuocthiController = require("../controllers/cuocthiController");
+const dethiController = require("../controllers/dethiController");
+
 const createExam = require("../controllers/exams");
 
 const router = express.Router();
@@ -114,5 +116,19 @@ router.get("/xephang/:id", cuocthiController.getBangXepHangById);
 
 // KẾT QUẢ THI
 router.get("/ketqua/:id", cuocthiController.getKetQuaThiById);
+
+//ĐỀ THI
+// BỔ SUNG: Cấu hình multer riêng cho việc upload file văn bản sửa lỗi
+const textStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Lưu tạm file gốc vào thư mục temp/text
+    cb(null, "uploads/temp/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
+});
+const textUpload = multer({ storage: textStorage });
+router.post("/dethi", textUpload.single("fileText"), dethiController.postDeThi);
 
 module.exports = router;
