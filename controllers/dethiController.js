@@ -102,8 +102,8 @@ bình luận, đề nghị, gợi ý câu hỏi tiếp theo, nào khác.
       throw new Error("API của AI không trả về nội dung.");
     }
     correctedText = response.text;
-    // ...
 
+    console.log(correctedText);
     // 4. Tạo tệp Word (.docx)
     const doc = new Document({
       sections: [
