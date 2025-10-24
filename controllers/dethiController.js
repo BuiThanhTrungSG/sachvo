@@ -105,9 +105,47 @@ và "2. Kiểm tra kiến thức khoa học". Các mục có nội dung như ph�
     }
     correctedText = response.text();
 
-    const lines = correctedText.split(/\r?\n|<br>/);
-    const paragraphChildren = lines.map((line) => {
-      // Kiểm tra xem dòng hiện tại có phải là tiêu đề lớn cần in đậm hay không
+    // =============================================================
+    // BỘ LỌC VĂN BẢN (Text Filtering)
+    // =============================================================
+    const rawLines = correctedText.split(/\r?\n|<br>/);
+    const cleanedLines = [];
+
+    for (let i = 0; i < rawLines.length; i++) {
+      const currentLineText = rawLines[i];
+      const currentLineTrimmed = currentLineText.trim();
+
+      // Lấy dòng cuối cùng đã được giữ lại trong mảng cleanedLines
+      const lastKeptLineTrimmed =
+        cleanedLines.length > 0
+          ? cleanedLines[cleanedLines.length - 1].trim()
+          : null;
+
+      const isCurrentBlank = currentLineTrimmed === "";
+      // Sử dụng regex để kiểm tra các đáp án: A., B., C., D.
+      const isAnswerOption = /^[A-D]\./.test(currentLineTrimmed);
+
+      // --- Goal 1: Giảm 2 dòng trống liên tiếp thành 1 ---
+      // Bỏ qua dòng trống hiện tại nếu dòng cuối cùng đã giữ lại cũng là dòng trống.
+      if (isCurrentBlank && lastKeptLineTrimmed === "") {
+        continue;
+      }
+
+      // --- Goal 2: Loại bỏ dòng trống ngay trước đáp án ---
+      // Nếu dòng hiện tại là đáp án VÀ dòng cuối cùng đã giữ lại là dòng trống,
+      // thì xóa dòng trống đó khỏi cleanedLines trước khi thêm đáp án hiện tại.
+      if (isAnswerOption && lastKeptLineTrimmed === "") {
+        cleanedLines.pop(); // Loại bỏ dòng trống phía trước
+      }
+
+      // Thêm dòng hiện tại (đã lọc các trường hợp bị trùng lặp)
+      cleanedLines.push(currentLineText);
+    }
+
+    // =============================================================
+    // ÁNH XẠ SANG ĐỐI TƯỢNG PARAGRAPH
+    // =============================================================
+    const paragraphChildren = cleanedLines.map((line) => {
       const trimmedLine = line.trim();
       const isMajorHeader =
         trimmedLine.startsWith("I. THẨM ĐỊNH ĐỀ THI GỐC") ||
@@ -124,9 +162,6 @@ và "2. Kiểm tra kiến thức khoa học". Các mục có nội dung như ph�
         children: [
           new TextRun({
             text: line,
-            // =============================================================
-            // THÊM LOGIC IN ĐẬM TIÊU ĐỀ
-            // =============================================================
             bold: isMajorHeader,
           }),
         ],
