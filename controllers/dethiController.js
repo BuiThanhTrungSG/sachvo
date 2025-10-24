@@ -148,8 +148,11 @@ và "2. Kiểm tra kiến thức khoa học". Các mục có nội dung như ph�
     const paragraphChildren = cleanedLines.map((line) => {
       const trimmedLine = line.trim();
       const isMajorHeader =
-        trimmedLine.startsWith("I. THẨM ĐỊNH ĐỀ THI GỐC") ||
-        trimmedLine.startsWith("II. TẠO PHIÊN BẢN ĐỀ THI TRẮC NGHIỆM");
+        trimmedLine.startsWith("I.") ||
+        trimmedLine.startsWith("II.") ||
+        trimmedLine.startsWith("**") ||
+        trimmedLine.startsWith("1.") ||
+        trimmedLine.startsWith("2.");
 
       if (trimmedLine === "") {
         return new Paragraph({});
