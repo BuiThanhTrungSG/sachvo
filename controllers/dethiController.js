@@ -22,8 +22,7 @@ require("dotenv").config();
 // (Giữ nguyên phần khởi tạo AI và hàm extractTextFromFile...)
 // ...
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-
+const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
 const extractTextFromFile = async (filePath, mimeType) => {
   // (Giữ nguyên logic của hàm này)
   const fileExtension = path.extname(filePath).toLowerCase();
@@ -75,14 +74,34 @@ const postDeThi = async (req, res) => {
 
     // (Giữ nguyên toàn bộ logic PROMPT và gọi GEMINI...)
     // ...
-    const correctionPrompt = `... (PROMPT CỦA BẠN) ...`;
+    const correctionPrompt = `
+Bạn là giáo viên dạy cấp 3 (Trung học phổ thông - THPT) và cấp 2 (Trung học cơ sở - THCS) đồng thời là chuyên gia biên tập và sửa lỗi tiếng Việt.
+Văn bản được cung cấp là đề thi trắc nghiệm có dạng như sau: Câu hỏi bắt đầu bằng chữ Câu và đánh số thứ tự, mỗi câu hỏi có 4 đáp án A, B, C, D, đáp án đúng
+được đánh dấu khác với các đáp án còn lại (đánh dấu bằng một trong các cách: In đậm, gạch chân, highlight, đổi màu chữ, in nghiêng...)
+### Nhiệm vụ của bạn là:
+1. Kiểm tra lỗi chính tả. HƯỚNG DẪN XỬ LÝ: Đảm bảo chính tả và dấu câu hoàn toàn chính xác. Chỗ nào sai thì sửa vào văn bản gốc cho đúng.
+2. Kiểm tra kiến thức khoa học. HƯỚNG DẪN XỬ LÝ:
+- Kết hợp câu hỏi và đáp án đúng để kiểm tra xem kiến thức này đã đúng hay chưa. Nếu nếu sai thì sửa vào văn bản gốc cho đúng.
+- Kiểm tra các đáp án sai, nếu đó là đáp án đúng cho câu hỏi thì đưa ra cảnh báo.
+3. Sau khi Kiểm tra lỗi chính tả và Kiểm tra kiến thức khoa học, hãy tổng hợp các vị trí văn bản gốc đã được sửa và các cảnh báo vào mục "I. THẨM ĐỊNH ĐỀ THI GỐC".
+4. Sử dụng văn bản gốc khi đã được sửa chữa Kiểm tra lỗi chính tả và Kiểm tra kiến thức khoa học để:
+- Đảo ngẫu nhiên thứ tự câu hỏi, đáp án trong văn bản gốc thành ${numberExFiles} đề thi trắc nhiệm.
+- Xóa hết các định dạng đánh dấu đáp án đúng ở các đề thi trắc nghiệm mới được tạo ra.
+- Tổng hợp đáp án đúng của các đề thi trắc nghiệm ở dưới cùng.
+- Sắp xếp các đề thi, đáp án mới được tạo ra ở mục "II. TẠO PHIÊN BẢN ĐỀ THI TRẮC NGHIỆM".
+### GIỚI HẠN ĐẦU RA (RẤT QUAN TRỌNG):
+- Duy trì định dạng cơ bản của văn bản gốc (ví dụ: các đoạn xuống dòng, danh sách...).
+- Kết quả đầu ra bố cục chỉ có 2 mục "I. THẨM ĐỊNH ĐỀ THI GỐC" và "II. TẠO PHIÊN BẢN ĐỀ THI TRẮC NGHIỆM" có nội dung như đã hướng dẫn, không thêm bất cứ lời dẫn,
+bình luận, đề nghị, gợi ý câu hỏi tiếp theo, nào khác.
+**Chỉ trả về** phiên bản văn bản đã hoàn chỉnh.
+`;
     const fullPrompt = `${correctionPrompt}\n--- ĐÂY LÀ VĂN BẢN ĐƯỢC CUNG CẤP ---\n${originalText}`;
     const result = await model.generateContent(fullPrompt);
     const response = result.response;
     if (!response || !response.text) {
       throw new Error("API của AI không trả về nội dung.");
     }
-    correctedText = response.text();
+    correctedText = response.text;
     // ...
 
     // 4. Tạo tệp Word (.docx)
