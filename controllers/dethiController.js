@@ -79,7 +79,7 @@ Bạn là giáo viên dạy cấp 3 (Trung học phổ thông - THPT) và cấp 
 Văn bản được cung cấp là đề thi trắc nghiệm có dạng như sau: Câu hỏi bắt đầu bằng chữ Câu và đánh số thứ tự, mỗi câu hỏi có 4 đáp án A, B, C, D, đáp án đúng
 được đánh dấu khác với các đáp án còn lại (đánh dấu bằng một trong các cách: In đậm, gạch chân, highlight, đổi màu chữ, in nghiêng...)
 ### Nhiệm vụ của bạn là:
-1. Kiểm tra lỗi chính tả. HƯỚNG DẪN XỬ LÝ: Đảm bảo chính tả và dấu câu hoàn toàn chính xác. Chỗ nào sai thì sửa vào văn bản gốc cho đúng.
+1. Sửa lỗi chính tả và dấu câu. HƯỚNG DẪN XỬ LÝ: Đảm bảo chính tả và dấu câu hoàn toàn chính xác. Chỗ nào sai thì sửa vào văn bản gốc cho đúng.
 2. Kiểm tra kiến thức khoa học. HƯỚNG DẪN XỬ LÝ:
 - Kết hợp câu hỏi và đáp án đúng để kiểm tra xem kiến thức này đã đúng hay chưa. Nếu nếu sai thì sửa vào văn bản gốc cho đúng.
 - Kiểm tra các đáp án sai, nếu đó là đáp án đúng cho câu hỏi thì đưa ra cảnh báo.
@@ -91,8 +91,10 @@ Văn bản được cung cấp là đề thi trắc nghiệm có dạng như sau
 - Sắp xếp các đề thi, đáp án mới được tạo ra ở mục "II. TẠO PHIÊN BẢN ĐỀ THI TRẮC NGHIỆM".
 ### GIỚI HẠN ĐẦU RA (RẤT QUAN TRỌNG):
 - Duy trì định dạng cơ bản của văn bản gốc (ví dụ: các đoạn xuống dòng, danh sách...).
-- Kết quả đầu ra bố cục chỉ có 2 mục "I. THẨM ĐỊNH ĐỀ THI GỐC" và "II. TẠO PHIÊN BẢN ĐỀ THI TRẮC NGHIỆM" có nội dung như đã hướng dẫn, không thêm bất cứ lời dẫn,
-bình luận, đề nghị, gợi ý câu hỏi tiếp theo, nào khác.
+- Kết quả đầu ra bố cục như sau: Có 2 mục lớn "I. THẨM ĐỊNH ĐỀ THI GỐC" và "II. TẠO PHIÊN BẢN ĐỀ THI TRẮC NGHIỆM", trong mục  "I. THẨM ĐỊNH ĐỀ THI GỐC" có 2 mục con là "1. Sửa lỗi chính tả và dấu câu"
+và "2. Kiểm tra kiến thức khoa học". Các mục có nội dung như phần nhiệm vụ đã hướng dẫn xử lý.
+- Sau mỗi mục, mỗi câu hỏi, mỗi đáp án thêm ký tự \n để đánh dấu xử lý xuống dòng, bỏ tất cả các ký tự dấu *
+- Kết quả trả về không thêm bất cứ lời dẫn, bình luận, đề nghị, gợi ý câu hỏi tiếp theo, nào khác.
 **Chỉ trả về** phiên bản văn bản đã hoàn chỉnh.
 `;
     const fullPrompt = `${correctionPrompt}\n--- ĐÂY LÀ VĂN BẢN ĐƯỢC CUNG CẤP ---\n${originalText}`;
@@ -103,6 +105,17 @@ bình luận, đề nghị, gợi ý câu hỏi tiếp theo, nào khác.
     }
     correctedText = response.text();
 
+    const lines = correctedText.split("\n");
+    const paragraphChildren = lines.map((line) => {
+      if (line.trim() === "") {
+        return new Paragraph({});
+      }
+      return new Paragraph({
+        alignment: Alignment.JUSTIFIED,
+        spacing: { line: 360, after: 200 },
+        children: [new TextRun(line)], // Mỗi dòng là một TextRun trong một Paragraph mới
+      });
+    });
     // 4. Tạo tệp Word (.docx)
     const doc = new Document({
       sections: [
@@ -150,14 +163,7 @@ bình luận, đề nghị, gợi ý câu hỏi tiếp theo, nào khác.
                 }),
               ],
             }),
-            new Paragraph({
-              alignment: Alignment.JUSTIFIED,
-              spacing: {
-                line: 360,
-                after: 200,
-              },
-              children: [new TextRun(correctedText)],
-            }),
+            ...paragraphChildren,
           ],
         },
       ],
