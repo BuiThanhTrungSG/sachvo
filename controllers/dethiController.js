@@ -93,7 +93,7 @@ Văn bản được cung cấp là đề thi trắc nghiệm có dạng như sau
 - Duy trì định dạng cơ bản của văn bản gốc (ví dụ: các đoạn xuống dòng, danh sách...).
 - Kết quả đầu ra bố cục như sau: Có 2 mục lớn "I. THẨM ĐỊNH ĐỀ THI GỐC" và "II. TẠO PHIÊN BẢN ĐỀ THI TRẮC NGHIỆM", trong mục  "I. THẨM ĐỊNH ĐỀ THI GỐC" có 2 mục con là "1. Sửa lỗi chính tả và dấu câu"
 và "2. Kiểm tra kiến thức khoa học". Các mục có nội dung như phần nhiệm vụ đã hướng dẫn xử lý.
-- Sau mỗi mục, mỗi câu hỏi, mỗi đáp án thêm ký tự \n để đánh dấu xử lý xuống dòng, bỏ tất cả các ký tự dấu *
+- Sau mỗi mục, mỗi câu hỏi, mỗi đáp án thêm ký tự <br> để đánh dấu xử lý xuống dòng, bỏ tất cả các ký tự dấu *
 - Kết quả trả về không thêm bất cứ lời dẫn, bình luận, đề nghị, gợi ý câu hỏi tiếp theo, nào khác.
 **Chỉ trả về** phiên bản văn bản đã hoàn chỉnh.
 `;
@@ -105,15 +105,31 @@ và "2. Kiểm tra kiến thức khoa học". Các mục có nội dung như ph�
     }
     correctedText = response.text();
 
-    const lines = correctedText.split("\n");
+    const lines = correctedText.split(/\r?\n|<br>/);
     const paragraphChildren = lines.map((line) => {
-      if (line.trim() === "") {
+      // Kiểm tra xem dòng hiện tại có phải là tiêu đề lớn cần in đậm hay không
+      const trimmedLine = line.trim();
+      const isMajorHeader =
+        trimmedLine.startsWith("I. THẨM ĐỊNH ĐỀ THI GỐC") ||
+        trimmedLine.startsWith("II. TẠO PHIÊN BẢN ĐỀ THI TRẮC NGHIỆM");
+
+      if (trimmedLine === "") {
         return new Paragraph({});
       }
+
       return new Paragraph({
         alignment: Alignment.JUSTIFIED,
-        spacing: { line: 360, after: 200 },
-        children: [new TextRun(line)], // Mỗi dòng là một TextRun trong một Paragraph mới
+        // Giảm khoảng cách dưới cho các dòng không phải tiêu đề để văn bản liền mạch hơn
+        spacing: { line: 360, after: isMajorHeader ? 300 : 150 },
+        children: [
+          new TextRun({
+            text: line,
+            // =============================================================
+            // THÊM LOGIC IN ĐẬM TIÊU ĐỀ
+            // =============================================================
+            bold: isMajorHeader,
+          }),
+        ],
       });
     });
     // 4. Tạo tệp Word (.docx)
@@ -163,6 +179,7 @@ và "2. Kiểm tra kiến thức khoa học". Các mục có nội dung như ph�
                 }),
               ],
             }),
+            new Paragraph({}),
             ...paragraphChildren,
           ],
         },
