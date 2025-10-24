@@ -151,6 +151,8 @@ và "2. Kiểm tra kiến thức khoa học". Các mục có nội dung như ph�
         trimmedLine.startsWith("I.") ||
         trimmedLine.startsWith("II.") ||
         trimmedLine.startsWith("**") ||
+        trimmedLine.toLocaleLowerCase().includes("đề thi số") ||
+        trimmedLine.toLocaleLowerCase().includes("đáp án đề thi số") ||
         trimmedLine.startsWith("1.") ||
         trimmedLine.startsWith("2.");
 
